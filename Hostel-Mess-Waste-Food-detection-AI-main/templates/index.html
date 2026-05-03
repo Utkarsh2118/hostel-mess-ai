@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Hostel Mess Attendance — Student</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --em-50:#ecfdf5;--em-100:#d1fae5;--em-200:#a7f3d0;--em-300:#6ee7b7;
+  --em-500:#10b981;--em-600:#059669;--em-700:#047857;--em-800:#065f46;--em-900:#064e3b;
+  --sl-50:#f8fafc;--sl-100:#f1f5f9;--sl-200:#e2e8f0;--sl-300:#cbd5e1;
+  --sl-500:#64748b;--sl-600:#475569;--sl-700:#334155;--sl-800:#1e293b;--sl-900:#0f172a;
+  --rose-50:#fff1f2;--rose-200:#fecdd3;--rose-600:#e11d48;
+  --amber-50:#fffbeb;--amber-200:#fde68a;--amber-700:#b45309;--amber-800:#92400e;
+  --font:\'Sora\',sans-serif;
+}
+body{font-family:var(--font);background:linear-gradient(to bottom,#ecfdf5,#fff,#d1fae5);min-height:100vh;color:#0f172a}
+body::before{content:\'\';position:fixed;inset:0;z-index:-1;background:radial-gradient(circle at 15% 10%,rgba(39,167,117,.20),transparent 38%),radial-gradient(circle at 90% 20%,rgba(148,230,190,.35),transparent 30%)}
+
+/* -------- layout -------- */
+.page{max-width:56rem;margin:0 auto;padding:2rem 1rem 3rem}
+.login-page{display:grid;min-height:100vh;place-items:center;padding:2rem 1rem}
+
+/* -------- card -------- */
+.card{background:#fff;border:1px solid var(--em-200);border-radius:1.5rem;padding:1.5rem;box-shadow:0 4px 24px rgba(16,185,129,.08)}
+.card-sm{max-width:36rem;width:100%}
+
+/* -------- badge / pill -------- */
+.pill{display:inline-flex;align-items:center;border-radius:9999px;padding:.25rem .75rem;font-size:.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+
+/* -------- logo block -------- */
+.logo-box{display:grid;place-items:center;height:3rem;width:3rem;border-radius:1rem;background:#059669;color:#fff;font-weight:800;font-size:.9rem;box-shadow:0 8px 20px rgba(5,150,105,.25);flex-shrink:0}
+
+/* -------- forms -------- */
+label span.lbl{display:block;font-size:.825rem;font-weight:700;color:var(--sl-700);margin-bottom:.35rem}
+input,select,textarea{width:100%;border:1px solid var(--em-200);border-radius:.75rem;padding:.75rem 1rem;font-size:.875rem;font-family:var(--font);outline:none;transition:border .15s,box-shadow .15s;background:#fff}
+input:focus,select:focus,textarea:focus{border-color:#059669;box-shadow:0 0 0 3px rgba(5,150,105,.12)}
+
+/* -------- buttons -------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;border:none;border-radius:.75rem;padding:.75rem 1.25rem;font-weight:700;font-size:.875rem;font-family:var(--font);cursor:pointer;transition:filter .15s,transform .15s}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.btn-green{background:linear-gradient(135deg,#065f46,#059669);color:#fff;box-shadow:0 4px 14px rgba(5,150,105,.25)}
+.btn-green:not(:disabled):hover{filter:brightness(.95);transform:translateY(-1px)}
+.btn-dark{background:#0f172a;color:#fff}
+.btn-dark:not(:disabled):hover{background:#1e293b}
+.btn-outline{background:#fff;border:1px solid var(--sl-300);color:var(--sl-700)}
+.btn-outline:hover{background:var(--sl-50)}
+.btn-em{background:#059669;color:#fff}
+.btn-em:not(:disabled):hover{filter:brightness(.95)}
+.btn-full{width:100%}
+
+/* -------- choice buttons -------- */
+.choice-grid{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
+.choice-btn{border-radius:.75rem;border:1px solid;padding:.75rem;font-weight:700;font-size:.875rem;font-family:var(--font);cursor:pointer;transition:all .15s;background:#fff}
+.choice-btn:active{transform:scale(.97)}
+.choice-btn.active-green{background:#059669;border-color:#059669;color:#fff;box-shadow:0 4px 12px rgba(5,150,105,.25)}
+.choice-btn.inactive-green{background:var(--em-50);border-color:var(--em-200);color:#064e3b}
+.choice-btn.inactive-green:hover{background:var(--em-100)}
+.choice-btn.active-dark{background:#1e293b;border-color:#334155;color:#fff;box-shadow:0 4px 12px rgba(30,41,59,.2)}
+.choice-btn.inactive-dark{background:var(--sl-50);border-color:var(--sl-200);color:var(--sl-900)}
+.choice-btn.inactive-dark:hover{background:var(--sl-100)}
+
+/* -------- alerts -------- */
+.alert{border-radius:1rem;padding:.75rem 1rem;font-size:.875rem}
+.alert-amber{background:var(--amber-50);border:1px solid var(--amber-200);color:var(--amber-800)}
+.alert-amber strong{color:var(--amber-800)}
+.alert-rose{background:var(--rose-50);border:1px solid var(--rose-200);color:#9f1239}
+.alert-green{background:var(--em-50);border:1px solid var(--em-200);color:var(--em-800)}
+
+/* -------- hero section -------- */
+.hero{border-radius:1.5rem;padding:1.5rem;background:linear-gradient(135deg,#065f46,#047857,#059669);color:#fff;box-shadow:0 4px 24px rgba(5,150,105,.2)}
+.hero-badge{display:inline-flex;align-items:center;border-radius:9999px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.15);padding:.25rem .75rem;font-size:.7rem;font-weight:700}
+.hero-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem;margin-top:1rem}
+@media(max-width:640px){.hero-grid{grid-template-columns:1fr}}
+.hero-card{border-radius:1rem;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);padding:.75rem;font-size:.875rem}
+
+/* -------- timeline -------- */
+.timeline{position:relative;display:flex;flex-direction:column;gap:.75rem}
+.timeline::before{content:\'\';position:absolute;left:1rem;top:.5rem;bottom:.5rem;width:2px;background:var(--em-100)}
+.tl-item{position:relative;display:flex;align-items:center;justify-content:space-between;gap:.75rem;border-radius:1rem;border:1px solid;padding:.75rem;transition:all .2s}
+.tl-item.active{border-color:#059669;background:var(--em-50);box-shadow:0 0 0 3px rgba(5,150,105,.12)}
+.tl-item.inactive{border-color:var(--sl-200);background:var(--sl-50)}
+.tl-dot{z-index:1;display:grid;place-items:center;height:2rem;width:2rem;border-radius:9999px;font-size:.75rem;font-weight:800;flex-shrink:0}
+.tl-dot.active{background:#059669;color:#fff}
+.tl-dot.inactive{background:#fff;color:var(--sl-600);border:1px solid var(--sl-200)}
+
+/* -------- history grid -------- */
+.history-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:.5rem}
+@media(max-width:640px){.history-grid{grid-template-columns:repeat(3,1fr)}}
+.hist-cell{border-radius:1rem;border:1px solid var(--sl-200);background:var(--sl-50);padding:.75rem}
+.dot-row{display:flex;gap:.375rem;margin-top:.5rem}
+.dot{height:.75rem;width:.75rem;border-radius:9999px}
+.dot-on{background:#10b981}
+.dot-off{background:var(--sl-300)}
+
+/* -------- 3-col bottom grid -------- */
+.bottom-grid{display:grid;gap:1rem}
+@media(min-width:768px){.bottom-grid{grid-template-columns:1fr 1fr 1fr}}
+
+/* -------- QR section -------- */
+.qr-box{display:flex;align-items:center;justify-content:center;border-radius:.75rem;border:1px solid var(--em-200);background:var(--em-50);padding:1rem;min-height:13rem}
+.qr-box img{height:12rem;width:12rem;object-fit:contain}
+
+/* -------- toast -------- */
+.toast-wrap{position:fixed;bottom:1rem;left:50%;transform:translateX(-50%);z-index:999;width:92%;max-width:28rem;animation:slideUp .25s ease}
+.toast-inner{border-radius:.75rem;padding:.75rem 1rem;font-size:.875rem;font-weight:700;box-shadow:0 8px 24px rgba(0,0,0,.15)}
+.toast-success{background:#047857;color:#fff}
+.toast-error{background:#e11d48;color:#fff}
+@keyframes slideUp{from{opacity:0;transform:translateX(-50%) translateY(12px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+
+/* -------- QR scanner -------- */
+.scanner-video{height:12rem;width:100%;object-fit:cover;border-radius:.75rem;background:#000}
+
+/* -------- impact banner -------- */
+.impact-banner{border-radius:1.5rem;padding:1.25rem 1.5rem;background:linear-gradient(135deg,#065f46,#059669);color:#fff;box-shadow:0 4px 24px rgba(5,150,105,.2)}
+
+/* -------- header -------- */
+.page-header{border-radius:1.5rem;border:1px solid rgba(167,243,208,.5);background:rgba(255,255,255,.85);padding:1rem 1.25rem;box-shadow:0 4px 16px rgba(16,185,129,.06);backdrop-filter:blur(8px);margin-bottom:1rem}
+.header-inner{display:flex;flex-direction:column;gap:1rem}
+@media(min-width:640px){.header-inner{flex-direction:row;align-items:center;justify-content:space-between}}
+.header-right{display:flex;align-items:center;gap:.5rem}
+.student-pill{border-radius:.75rem;border:1px solid var(--em-200);background:var(--em-50);padding:.5rem .75rem;font-size:.875rem;font-weight:700;color:#064e3b}
+
+/* -------- two-col section -------- */
+.two-col{display:grid;gap:1rem}
+@media(min-width:900px){.two-col{grid-template-columns:1.1fr .9fr}}
+
+/* -------- reminders -------- */
+.reminder-grid{display:grid;gap:.5rem}
+@media(min-width:640px){.reminder-grid{grid-template-columns:1fr 1fr}}
+@media(min-width:1024px){.reminder-grid{grid-template-columns:repeat(4,1fr)}}
+
+/* -------- misc -------- */
+.sec-label{font-size:.7rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#047857}
+.sec-title{font-size:1.25rem;font-weight:800;color:#0f172a;margin-top:.25rem}
+.spacer{margin-top:1rem}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+
+<!-- ==================== LOGIN PAGE ==================== -->
+<div id="login-page" class="login-page">
+  <div class="card card-sm">
+    <div style="display:flex;align-items:flex-start;gap:.75rem">
+      <div class="logo-box">HM</div>
+      <div>
+        <p class="sec-label">Student Login</p>
+        <h1 style="font-size:1.5rem;font-weight:800">Hostel Mess Attendance</h1>
+        <p style="margin-top:.25rem;font-size:.875rem;color:var(--sl-600)">Login once to mark your meal preference only one time per meal.</p>
+      </div>
+    </div>
+
+    <div style="margin-top:1.5rem;display:flex;flex-direction:column;gap:1rem">
+      <label>
+        <span class="lbl">Student Name</span>
+        <input id="login-name" type="text" list="students-list" placeholder="Start typing your name" required/>
+        <datalist id="students-list"></datalist>
+      </label>
+
+      <label>
+        <span class="lbl">PIN</span>
+        <input id="login-pin" type="password" inputmode="numeric" placeholder="Enter your PIN" required/>
+      </label>
+
+      <!-- QR section -->
+      <div style="border-radius:1rem;border:1px solid var(--sl-200);background:var(--sl-50);padding:.75rem">
+        <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.5rem">
+          <p class="sec-label">QR Login Assist</p>
+          <button class="btn btn-outline" id="qr-toggle-btn" style="padding:.375rem .75rem;font-size:.75rem">Scan QR</button>
+        </div>
+        <div id="qr-scanner-wrap" class="hidden" style="margin-top:.5rem;overflow:hidden;border-radius:.75rem;border:1px solid var(--sl-300);background:#000">
+          <video id="qr-video" class="scanner-video" muted playsinline></video>
+        </div>
+        <label style="margin-top:.5rem;display:block">
+          <span class="lbl">QR Payload (student|pin or JSON)</span>
+          <input id="qr-payload" type="text" placeholder="Aarav Sharma|1234"/>
+        </label>
+        <button class="btn btn-dark" id="qr-apply-btn" style="margin-top:.5rem;padding:.5rem .75rem;font-size:.75rem">Apply QR Data</button>
+        <p id="qr-error" class="hidden" style="margin-top:.5rem;font-size:.75rem;font-weight:700;color:#e11d48"></p>
+      </div>
+
+      <button class="btn btn-green btn-full" id="login-btn">Login to Continue</button>
+    </div>
+
+    <div style="margin-top:1rem;border-radius:1rem;background:var(--sl-50);padding:1rem;font-size:.875rem;color:var(--sl-600)">
+      Once logged in, your attendance will be tied to your account and duplicate submissions for the same meal will be blocked.
+      <p style="margin-top:.5rem;font-weight:700;color:var(--sl-700)">Default PIN: 1234</p>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MAIN DASHBOARD ==================== -->
+<div id="main-page" class="page hidden">
+
+  <!-- Header -->
+  <div class="page-header">
+    <div class="header-inner">
+      <div style="display:flex;align-items:flex-start;gap:.75rem">
+        <div class="logo-box" style="height:2.75rem;width:2.75rem;border-radius:.875rem;font-size:.8rem">HM</div>
+        <div>
+          <p class="sec-label">Hostel Mess Smart Check-in</p>
+          <h1 style="font-size:1.25rem;font-weight:800">Hostel Mess Attendance</h1>
+          <p id="hdr-date" style="margin-top:.25rem;font-size:.875rem;font-weight:500;color:var(--sl-600)"></p>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="student-pill" id="hdr-student"></div>
+        <button class="btn btn-outline" id="logout-btn" style="padding:.5rem 1rem">Logout</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hero -->
+  <div class="hero">
+    <p class="hero-badge">Eat Smart. Waste Less.</p>
+    <h2 style="margin-top:.5rem;font-size:1.5rem;font-weight:800;line-height:1.3">Quick attendance, greener kitchen, better hostel meals.</h2>
+    <p style="margin-top:.5rem;font-size:.875rem;color:rgba(255,255,255,.9)">Mark your meal plan in a few taps and help the mess team prepare just the right amount of food.</p>
+    <div style="margin-top:1rem;display:flex;flex-wrap:wrap;gap:.5rem">
+      <span class="hero-badge">Fast Check-in</span>
+      <span class="hero-badge">Lower Waste</span>
+      <span class="hero-badge">Better Forecast</span>
+    </div>
+    <div class="hero-grid">
+      <div class="hero-card"><p style="font-weight:700">Attendance First</p><p style="margin-top:.25rem;color:rgba(255,255,255,.95);font-size:.8rem">Daily responses improve food planning accuracy.</p></div>
+      <div class="hero-card"><p style="font-weight:700">Time-Based Meals</p><p style="margin-top:.25rem;color:rgba(255,255,255,.95);font-size:.8rem">Attendance is open only during active meal windows.</p></div>
+      <div class="hero-card"><p style="font-weight:700">Balanced Preparation</p><p style="margin-top:.25rem;color:rgba(255,255,255,.95);font-size:.8rem">Supports enough food while avoiding over-cooking.</p></div>
+    </div>
+  </div>
+
+  <!-- Menu Banner -->
+  <div class="card spacer">
+    <p class="sec-label">Meal Of The Day</p>
+    <p id="menu-title" class="sec-title" style="font-size:1.1rem"></p>
+    <p id="menu-updated" style="margin-top:.25rem;font-size:.75rem;color:var(--sl-500)"></p>
+  </div>
+
+  <!-- Mark Attendance + Timeline -->
+  <div class="two-col spacer">
+
+    <!-- Mark Attendance card -->
+    <div class="card">
+      <div style="display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:.75rem;margin-bottom:1rem">
+        <div>
+          <p class="sec-label">Mark Attendance</p>
+          <h3 id="meal-status-title" class="sec-title" style="font-size:1.15rem"></h3>
+          <p id="meal-status-sub" style="margin-top:.25rem;font-size:.875rem;color:var(--sl-600)"></p>
+        </div>
+        <div style="border-radius:.75rem;border:1px solid var(--em-200);background:var(--em-50);padding:.5rem .75rem;text-align:right">
+          <p style="font-size:.65rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#047857">Current Time</p>
+          <p id="clock" style="font-size:1rem;font-weight:800;color:#064e3b"></p>
+        </div>
+      </div>
+
+      <div id="closed-alert" class="alert alert-amber hidden spacer" style="margin-bottom:1rem">
+        <strong>Mess Closed</strong>
+        <p id="closed-next" style="font-size:.875rem"></p>
+      </div>
+
+      <div id="cutoff-alert" class="alert alert-rose hidden" style="margin-bottom:1rem">
+        <strong>Meal cutoff reminder</strong>
+        <p id="cutoff-text" style="font-size:.875rem"></p>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:1rem">
+        <div class="alert alert-green">
+          <p style="font-size:.65rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#047857">Logged In As</p>
+          <p id="logged-as" style="margin-top:.25rem;font-size:1rem;font-weight:800;color:#0f172a"></p>
+        </div>
+
+        <div>
+          <p style="margin-bottom:.5rem;font-size:.875rem;font-weight:700;color:#1e293b">Meal Decision</p>
+          <div class="choice-grid">
+            <button class="choice-btn active-green" id="btn-will-eat" onclick="setChoice('Will Eat')">Will Eat</button>
+            <button class="choice-btn inactive-dark" id="btn-wont-eat" onclick="setChoice(\'Won\'t Eat\')">Won't Eat</button>
+          </div>
+        </div>
+
+        <button class="btn btn-green btn-full" id="submit-attendance-btn">Submit Attendance</button>
+      </div>
+
+      <div id="already-marked" class="alert alert-amber hidden" style="margin-top:1rem">
+        <strong>Already marked for this meal</strong>
+        <p id="already-status" style="font-size:.875rem"></p>
+      </div>
+
+      <div class="alert alert-green" style="margin-top:1rem">
+        <p style="font-size:.65rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#047857">Today's Summary</p>
+        <p id="meal-summary" style="margin-top:.25rem;font-size:.875rem;font-weight:600;color:#1e293b"></p>
+      </div>
+    </div>
+
+    <!-- Timeline card -->
+    <div class="card">
+      <p class="sec-label">Today's Meal Timings</p>
+      <h3 class="sec-title">Timeline</h3>
+      <div class="timeline spacer" id="timeline"></div>
+    </div>
+  </div>
+
+  <!-- History -->
+  <div class="card spacer">
+    <p class="sec-label">My Attendance History</p>
+    <h3 id="hist-title" class="sec-title"></h3>
+    <div class="history-grid spacer" id="history-grid"></div>
+  </div>
+
+  <!-- QR + PIN + Feedback -->
+  <div class="bottom-grid spacer">
+
+    <!-- QR Card -->
+    <div class="card">
+      <p class="sec-label">Quick Login</p>
+      <h3 class="sec-title">My QR Code</h3>
+      <p style="margin-top:.5rem;font-size:.875rem;color:var(--sl-600)">Scan this QR with another device to quickly login.</p>
+      <div class="qr-box spacer" id="qr-display-box">
+        <p style="font-size:.875rem;color:var(--sl-500)">Loading QR code...</p>
+      </div>
+      <p style="margin-top:.75rem;font-size:.75rem;color:var(--sl-500);text-align:center">Contains your name and PIN</p>
+    </div>
+
+    <!-- Change PIN -->
+    <div class="card">
+      <p class="sec-label">Security</p>
+      <h3 class="sec-title">Change PIN</h3>
+      <div style="margin-top:.75rem;display:flex;flex-direction:column;gap:.75rem">
+        <label>
+          <span class="lbl">Old PIN</span>
+          <input id="old-pin" type="password"/>
+        </label>
+        <label>
+          <span class="lbl">New PIN</span>
+          <input id="new-pin" type="password"/>
+        </label>
+        <button class="btn btn-dark btn-full" id="change-pin-btn">Update PIN</button>
+      </div>
+    </div>
+
+    <!-- Feedback -->
+    <div class="card">
+      <p class="sec-label">Meal Feedback</p>
+      <h3 id="feedback-title" class="sec-title"></h3>
+      <div style="margin-top:.75rem;display:flex;flex-direction:column;gap:.75rem">
+        <label>
+          <span class="lbl">Rating</span>
+          <select id="feedback-rating">
+            <option value="5">5 Stars</option>
+            <option value="4">4 Stars</option>
+            <option value="3">3 Stars</option>
+            <option value="2">2 Stars</option>
+            <option value="1">1 Star</option>
+          </select>
+        </label>
+        <label>
+          <span class="lbl">Comment (optional)</span>
+          <textarea id="feedback-comment" rows="3" placeholder="What should improve?"></textarea>
+        </label>
+        <button class="btn btn-em btn-full" id="submit-feedback-btn">Submit Feedback</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reminders -->
+  <div id="reminders-section" class="hidden spacer" style="border-radius:1.5rem;border:1px solid #fde68a;background:linear-gradient(135deg,#fffbeb,#fff7ed);padding:1.25rem;box-shadow:0 4px 16px rgba(245,158,11,.08)">
+    <p style="font-size:.7rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#92400e">Meal Reminders</p>
+    <h3 class="sec-title">Upcoming Meal Cutoffs</h3>
+    <div class="reminder-grid spacer" id="reminders-grid"></div>
+  </div>
+
+  <!-- Impact -->
+  <div class="impact-banner spacer">
+    <p style="font-size:.7rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:rgba(255,255,255,.8)">Food Waste Impact</p>
+    <p id="impact-text" style="margin-top:.5rem;font-size:1.15rem;font-weight:800"></p>
+    <p style="margin-top:.25rem;font-size:.875rem;color:rgba(255,255,255,.9)">Every timely response improves tomorrow's preparation.</p>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast-wrap" class="toast-wrap hidden">
+  <div id="toast-inner" class="toast-inner toast-success"></div>
+</div>
+
+<script>
+// ============================================================
+//  State
+// ============================================================
+const FALLBACK_SLOTS=[
+  {meal:'Breakfast',start:480,end:600,label:'08:00 AM - 10:00 AM'},
+  {meal:'Lunch',start:720,end:900,label:'12:00 PM - 03:00 PM'},
+  {meal:'Tea',start:1020,end:1080,label:'05:00 PM - 06:00 PM'},
+  {meal:'Dinner',start:1200,end:1320,label:'08:00 PM - 10:00 PM'},
+];
+const SHORT={Breakfast:'B',Lunch:'L',Tea:'T',Dinner:'D'};
+
+let state={
+  now:new Date(),
+  mealSlots:FALLBACK_SLOTS,
+  students:[],
+  session:{logged_in:false,student_name:''},
+  selectedStudent:'',
+  mealCounts:{},
+  menuBanner:{meal:'Lunch',items:'Dal, Rice, Sabzi, Salad',updated_at:'11:30 AM'},
+  history:[],
+  impactSavedKg:0,
+  currentMealMarked:false,
+  currentMealStatus:'',
+  canMarkCurrentMeal:true,
+  statusChoice:'Will Eat',
+  qrCodeImage:'',
+  mealReminders:[],
+  isScannerOpen:false,
+  isSubmitting:false,
+  isLoggingIn:false,
+  isChangingPin:false,
+  isSubmittingFeedback:false,
+};
+
+// ============================================================
+//  Helpers
+// ============================================================
+function fmtDuration(s){
+  if(s<=0)return'00h 00m 00s';
+  const h=String(Math.floor(s/3600)).padStart(2,'0');
+  const m=String(Math.floor((s%3600)/60)).padStart(2,'0');
+  const sc=String(s%60).padStart(2,'0');
+  return`${h}h ${m}m ${sc}s`;
+}
+function fmtClock(d){return d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});}
+
+function computeRuntime(now,slots){
+  const nowMin=now.getHours()*60+now.getMinutes();
+  const sorted=[...slots].sort((a,b)=>+a.start - +b.start);
+  let activeMeal=null;
+  for(const s of sorted){if(nowMin>=+s.start&&nowMin<+s.end){activeMeal=s;break;}}
+  const nextMeal=sorted.find(s=>nowMin<+s.start)||sorted[0]||null;
+  if(!nextMeal)return{activeMeal:null,nextMeal:null,secondsRemaining:0};
+  const target=new Date(now);
+  if(activeMeal){
+    target.setHours(Math.floor(+activeMeal.end/60),+activeMeal.end%60,0,0);
+  }else{
+    target.setHours(Math.floor(+nextMeal.start/60),+nextMeal.start%60,0,0);
+    if(nowMin>=+nextMeal.start)target.setDate(target.getDate()+1);
+  }
+  return{activeMeal,nextMeal,secondsRemaining:Math.max(0,Math.floor((target-now)/1000))};
+}
+
+async function getJSON(url){
+  const r=await fetch(url);
+  if(!r.ok)throw new Error('Unable to fetch data.');
+  return r.json();
+}
+async function postJSON(url,body){
+  const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const p=await r.json().catch(()=>({}));
+  if(!r.ok||p.success===false)throw new Error(p.message||'Request failed.');
+  return p;
+}
+
+let _toastTimer=null;
+function showToast(text,type='success'){
+  const wrap=document.getElementById('toast-wrap');
+  const inner=document.getElementById('toast-inner');
+  inner.textContent=text;
+  inner.className='toast-inner '+(type==='error'?'toast-error':'toast-success');
+  wrap.classList.remove('hidden');
+  if(_toastTimer)clearTimeout(_toastTimer);
+  _toastTimer=setTimeout(()=>wrap.classList.add('hidden'),2500);
+}
+
+// ============================================================
+//  Choice
+// ============================================================
+function setChoice(c){
+  state.statusChoice=c;
+  document.getElementById('btn-will-eat').className='choice-btn '+(c==='Will Eat'?'active-green':'inactive-green');
+  document.getElementById('btn-wont-eat').className='choice-btn '+(c!=="Will Eat"?'active-dark':'inactive-dark');
+}
+
+// ============================================================
+//  Render helpers
+// ============================================================
+function $ (id){return document.getElementById(id);}
+
+function renderLoginPage(){
+  $('login-page').classList.remove('hidden');
+  $('main-page').classList.add('hidden');
+}
+
+function renderMainPage(){
+  $('login-page').classList.add('hidden');
+  $('main-page').classList.remove('hidden');
+}
+
+function updateClock(){
+  const rt=computeRuntime(state.now,state.mealSlots);
+  $('clock').textContent=fmtClock(state.now);
+
+  const curKey=rt.activeMeal?rt.activeMeal.meal:(rt.nextMeal?.meal||'Lunch');
+  const curCount=state.mealCounts[curKey]||{marked:0,attending:0};
+  const isSoon=!!(rt.activeMeal&&rt.secondsRemaining>0&&rt.secondsRemaining<=15*60);
+
+  // header date
+  $('hdr-date').textContent=state.now.toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+
+  // meal status
+  if(rt.activeMeal){
+    $('meal-status-title').textContent=`${rt.activeMeal.meal} window is open`;
+    $('meal-status-sub').textContent=`Closes in ${fmtDuration(rt.secondsRemaining)}`;
+  }else{
+    $('meal-status-title').textContent='Mess window closed';
+    $('meal-status-sub').textContent=`Next opens: ${rt.nextMeal?.meal||'Upcoming'} in ${fmtDuration(rt.secondsRemaining)}`;
+  }
+
+  // closed alert
+  if(!rt.activeMeal){
+    $('closed-alert').classList.remove('hidden');
+    $('closed-next').textContent=`Attendance opens at ${rt.nextMeal?.label||'next meal slot'}.`;
+  }else{
+    $('closed-alert').classList.add('hidden');
+  }
+
+  // cutoff alert
+  if(isSoon&&rt.activeMeal){
+    $('cutoff-alert').classList.remove('hidden');
+    $('cutoff-text').textContent=`${rt.activeMeal.meal} closes in ${fmtDuration(rt.secondsRemaining)}. Mark now.`;
+  }else{
+    $('cutoff-alert').classList.add('hidden');
+  }
+
+  // submit button
+  const submitBtn=$('submit-attendance-btn');
+  const disabled=!rt.activeMeal||state.isSubmitting||!state.canMarkCurrentMeal||state.currentMealMarked;
+  submitBtn.disabled=disabled;
+  submitBtn.textContent=state.isSubmitting?'Submitting...':'Submit Attendance';
+
+  // already marked
+  if(state.currentMealMarked){
+    $('already-marked').classList.remove('hidden');
+    $('already-status').textContent=`Recorded preference: ${state.currentMealStatus||'Submitted'}`;
+  }else{
+    $('already-marked').classList.add('hidden');
+  }
+
+  // summary
+  $('meal-summary').textContent=`${curCount.marked} students have marked for ${curKey} so far.`;
+
+  // feedback title
+  $('feedback-title').textContent=`Rate ${curKey}`;
+
+  // timeline
+  renderTimeline(rt);
+}
+
+function renderTimeline(rt){
+  const wrap=$('timeline');
+  wrap.innerHTML='';
+  for(const meal of state.mealSlots){
+    const isActive=rt.activeMeal&&rt.activeMeal.meal===meal.meal;
+    const count=state.mealCounts[meal.meal]||{marked:0,attending:0};
+    const item=document.createElement('div');
+    item.className='tl-item '+(isActive?'active':'inactive');
+    item.innerHTML=`
+      <div style="display:flex;align-items:center;gap:.75rem">
+        <div class="tl-dot ${isActive?'active':'inactive'}">${SHORT[meal.meal]||meal.meal[0]}</div>
+        <div>
+          <p style="font-size:.875rem;font-weight:800;color:#0f172a">${meal.meal}</p>
+          <p style="font-size:.75rem;color:var(--sl-500)">${meal.label}</p>
+        </div>
+      </div>
+      <span style="display:inline-flex;border-radius:9999px;padding:.25rem .625rem;font-size:.75rem;font-weight:700;${isActive?'background:#047857;color:#fff':'border:1px solid var(--sl-300);background:#fff;color:var(--sl-600)'}">${count.attending} attending</span>
+    `;
+    wrap.appendChild(item);
+  }
+}
+
+function renderHistory(){
+  const wrap=$('history-grid');
+  wrap.innerHTML='';
+  $('hist-title').textContent=`7-day streak for ${state.selectedStudent||'Student'}`;
+  for(const row of state.history){
+    const cell=document.createElement('div');
+    cell.className='hist-cell';
+    const dots=['B','L','T','D'].map(s=>`<span class="dot ${row.slots?.[s]?'dot-on':'dot-off'}" title="${row.day} ${s}"></span>`).join('');
+    cell.innerHTML=`<p style="font-size:.75rem;font-weight:700;color:var(--sl-700)">${row.day}</p><div class="dot-row">${dots}</div>`;
+    wrap.appendChild(cell);
+  }
+}
+
+function renderMenuBanner(){
+  $('menu-title').textContent=`Today's ${state.menuBanner.meal}: ${state.menuBanner.items}`;
+  $('menu-updated').textContent=`Updated by admin at ${state.menuBanner.updated_at}`;
+}
+
+function renderImpact(){
+  $('impact-text').textContent=`Your check-ins saved ~${Number(state.impactSavedKg).toFixed(1)} kg of food this month.`;
+}
+
+function renderQr(){
+  const box=$('qr-display-box');
+  if(state.qrCodeImage){
+    box.innerHTML=`<img src="${state.qrCodeImage}" alt="Student QR Code"/>`;
+  }else{
+    box.innerHTML=`<p style="font-size:.875rem;color:var(--sl-500)">QR code unavailable</p>`;
+  }
+}
+
+function renderReminders(){
+  const sec=$('reminders-section');
+  if(!state.mealReminders.length){sec.classList.add('hidden');return;}
+  sec.classList.remove('hidden');
+  const grid=$('reminders-grid');
+  grid.innerHTML='';
+  for(const r of state.mealReminders){
+    const dt=new Date(r.reminder_at);
+    const min=Math.max(0,r.minutes_until);
+    const card=document.createElement('div');
+    card.style.cssText='border-radius:1rem;border:1px solid #fde68a;background:#fff;padding:.75rem';
+    card.innerHTML=`<p style="font-size:.875rem;font-weight:700;color:#92400e">${r.meal}</p><p style="font-size:.75rem;color:#b45309">${dt.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}</p><p style="margin-top:.25rem;font-size:.75rem;font-weight:700;color:#92400e">${min} min remaining</p>`;
+    grid.appendChild(card);
+  }
+}
+
+// ============================================================
+//  API calls
+// ============================================================
+async function loadBootstrap(studentName=''){
+  const q=studentName?`?student_name=${encodeURIComponent(studentName)}`:'';
+  const p=await getJSON(`/api/student/bootstrap${q}`);
+  const incomingStudents=Array.isArray(p.students)?p.students:[];
+  const selected=p.selected_student||incomingStudents[0]||'';
+
+  state.mealSlots=Array.isArray(p.meal_slots)&&p.meal_slots.length?p.meal_slots:FALLBACK_SLOTS;
+  state.mealCounts=p.meal_counts||{};
+  state.menuBanner=p.menu_banner||state.menuBanner;
+  state.students=incomingStudents;
+  state.impactSavedKg=+(p.impact_saved_kg||0);
+  state.selectedStudent=selected;
+  state.history=Array.isArray(p.selected_student_history)?p.selected_student_history:[];
+  state.currentMealMarked=!!(p.current_meal_marked);
+  state.currentMealStatus=String(p.current_meal_status||'');
+  state.canMarkCurrentMeal=!!(p.can_mark_current_meal);
+
+  if(p.is_logged_in){
+    const ln=String(p.logged_student||selected||'').trim();
+    state.session={logged_in:true,student_name:ln};
+    $('login-name').value=ln;
+  }
+
+  // update datalist
+  const dl=$('students-list');
+  dl.innerHTML=state.students.map(n=>`<option value="${n}"></option>`).join('');
+}
+
+async function loadSession(){
+  try{
+    const p=await getJSON('/api/student/session');
+    const li=!!(p.logged_in);
+    const sn=String(p.student_name||'').trim();
+    state.session={logged_in:li,student_name:sn};
+    $('login-name').value=sn;
+    if(!li){state.selectedStudent='';state.history=[];}
+    return p;
+  }catch{
+    state.session={logged_in:false,student_name:''};
+    return{logged_in:false};
+  }
+}
+
+async function loadQrCode(){
+  if(!state.session.logged_in)return;
+  try{
+    const p=await getJSON('/api/student/qr-code');
+    state.qrCodeImage=p.qr_code||'';
+  }catch{}
+  renderQr();
+}
+
+async function loadMealReminders(){
+  if(!state.session.logged_in)return;
+  try{
+    const p=await getJSON('/api/student/meal-reminders');
+    state.mealReminders=p.upcoming_reminders||[];
+  }catch{}
+  renderReminders();
+}
+
+async function loadHistory(name){
+  if(!name){state.history=[];renderHistory();return;}
+  try{
+    const p=await getJSON(`/api/student/history?student_name=${encodeURIComponent(name)}`);
+    state.history=Array.isArray(p.history)?p.history:[];
+  }catch{state.history=[];}
+  renderHistory();
+}
+
+// ============================================================
+//  Login / Logout
+// ============================================================
+$('login-btn').addEventListener('click',async()=>{
+  const name=$('login-name').value.trim();
+  const pin=$('login-pin').value.trim();
+  if(!name){showToast('Please enter your student name.','error');return;}
+  if(!pin){showToast('Please enter your PIN.','error');return;}
+  $('login-btn').disabled=true;
+  $('login-btn').textContent='Logging in...';
+  try{
+    const p=await postJSON('/api/student/login',{student_name:name,pin});
+    const ln=String(p.student_name||name).trim();
+    state.session={logged_in:true,student_name:ln};
+    state.selectedStudent=ln;
+    $('login-pin').value='';
+    await loadBootstrap(ln);
+    renderMainPage();
+    $('hdr-student').textContent=state.session.student_name;
+    $('logged-as').textContent=state.session.student_name;
+    renderMenuBanner();renderHistory();renderImpact();
+    await loadQrCode();
+    await loadMealReminders();
+    showToast('Student login successful.','success');
+  }catch(e){
+    showToast(e.message||'Unable to login.','error');
+  }finally{
+    $('login-btn').disabled=false;
+    $('login-btn').textContent='Login to Continue';
+  }
+});
+
+$('logout-btn').addEventListener('click',async()=>{
+  try{await postJSON('/api/student/logout',{});}finally{
+    state.session={logged_in:false,student_name:''};
+    state.selectedStudent='';
+    state.history=[];
+    state.currentMealMarked=false;
+    state.currentMealStatus='';
+    state.canMarkCurrentMeal=true;
+    state.qrCodeImage='';
+    state.mealReminders=[];
+    $('login-name').value='';
+    $('login-pin').value='';
+    renderLoginPage();
+    showToast('Logged out.','success');
+  }
+});
+
+// ============================================================
+//  Submit attendance
+// ============================================================
+$('submit-attendance-btn').addEventListener('click',async()=>{
+  const rt=computeRuntime(state.now,state.mealSlots);
+  if(!rt.activeMeal){showToast(`Mess is closed. Next meal is ${rt.nextMeal?.meal||'upcoming'}.`,'error');return;}
+  if(!state.session.logged_in){showToast('Please login first.','error');return;}
+  if(state.currentMealMarked||!state.canMarkCurrentMeal){showToast(`You already marked ${rt.activeMeal.meal} today.`,'error');return;}
+  state.isSubmitting=true;
+  $('submit-attendance-btn').disabled=true;
+  $('submit-attendance-btn').textContent='Submitting...';
+  try{
+    const r=await fetch('/mark_attendance',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({meal_slot:rt.activeMeal.meal,status:state.statusChoice==='Will Eat'?'Will Eat':'Skip'})});
+    const res=await r.json();
+    if(!r.ok||!res.success)throw new Error(res.message||'Unable to submit attendance.');
+    await loadBootstrap(state.session.student_name);
+    showToast(`Attendance marked for ${rt.activeMeal.meal}.`,'success');
+  }catch(e){
+    showToast(e.message||'Submission failed. Please try again.','error');
+  }finally{
+    state.isSubmitting=false;
+  }
+});
+
+// ============================================================
+//  Change PIN
+// ============================================================
+$('change-pin-btn').addEventListener('click',async()=>{
+  const oldP=$('old-pin').value.trim();
+  const newP=$('new-pin').value.trim();
+  if(!oldP||!newP){showToast('Please provide old and new PIN.','error');return;}
+  $('change-pin-btn').disabled=true;
+  $('change-pin-btn').textContent='Updating...';
+  try{
+    const p=await postJSON('/api/student/pin/change',{old_pin:oldP,new_pin:newP});
+    $('old-pin').value='';$('new-pin').value='';
+    showToast(p.message||'PIN updated.','success');
+  }catch(e){
+    showToast(e.message||'Unable to update PIN.','error');
+  }finally{
+    $('change-pin-btn').disabled=false;
+    $('change-pin-btn').textContent='Update PIN';
+  }
+});
+
+// ============================================================
+//  Submit feedback
+// ============================================================
+$('submit-feedback-btn').addEventListener('click',async()=>{
+  const rt=computeRuntime(state.now,state.mealSlots);
+  const curKey=rt.activeMeal?rt.activeMeal.meal:(rt.nextMeal?.meal||'Lunch');
+  $('submit-feedback-btn').disabled=true;
+  $('submit-feedback-btn').textContent='Submitting...';
+  try{
+    const p=await postJSON('/api/student/menu-feedback',{meal_slot:curKey,rating:+$('feedback-rating').value,comment:$('feedback-comment').value});
+    $('feedback-comment').value='';
+    showToast(p.message||'Feedback submitted.','success');
+  }catch(e){
+    showToast(e.message||'Unable to submit feedback.','error');
+  }finally{
+    $('submit-feedback-btn').disabled=false;
+    $('submit-feedback-btn').textContent='Submit Feedback';
+  }
+});
+
+// ============================================================
+//  QR scanner
+// ============================================================
+let _scanTimer=null,_mediaStream=null,_detector=null;
+
+$('qr-toggle-btn').addEventListener('click',()=>{
+  state.isScannerOpen=!state.isScannerOpen;
+  $('qr-toggle-btn').textContent=state.isScannerOpen?'Stop Scanner':'Scan QR';
+  const wrap=$('qr-scanner-wrap');
+  if(state.isScannerOpen){
+    wrap.classList.remove('hidden');
+    startQrScan();
+  }else{
+    wrap.classList.add('hidden');
+    stopQrScan();
+  }
+});
+
+async function startQrScan(){
+  const errEl=$('qr-error');
+  if(!window.BarcodeDetector){
+    errEl.textContent='Camera QR scanning is not supported in this browser. Paste QR payload below.';
+    errEl.classList.remove('hidden');return;
+  }
+  try{
+    _detector=new window.BarcodeDetector({formats:['qr_code']});
+    _mediaStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+    const video=$('qr-video');
+    video.srcObject=_mediaStream;
+    await video.play();
+    _scanTimer=setInterval(async()=>{
+      try{
+        const codes=await _detector.detect(video);
+        if(!codes.length)return;
+        const raw=String(codes[0].rawValue||'').trim();
+        if(!raw)return;
+        $('qr-payload').value=raw;
+        applyQrPayload(raw);
+        state.isScannerOpen=false;
+        $('qr-scanner-wrap').classList.add('hidden');
+        $('qr-toggle-btn').textContent='Scan QR';
+        stopQrScan();
+      }catch{}
+    },650);
+  }catch{
+    errEl.textContent='Unable to start camera scanner. Check camera permission and retry.';
+    errEl.classList.remove('hidden');
+  }
+}
+
+function stopQrScan(){
+  if(_scanTimer){clearInterval(_scanTimer);_scanTimer=null;}
+  if(_mediaStream){_mediaStream.getTracks().forEach(t=>t.stop());_mediaStream=null;}
+}
+
+function applyQrPayload(raw){
+  const text=String(raw||'').trim();
+  if(!text)return;
+  let name='',pin='';
+  try{
+    const parsed=JSON.parse(text);
+    name=String(parsed.student_name||parsed.name||'').trim();
+    pin=String(parsed.pin||parsed.passcode||'').trim();
+  }catch{
+    const splitter=text.includes('|')?'|':text.includes(',')?',':'';
+    if(splitter){const parts=text.split(splitter).map(p=>p.trim());name=parts[0]||'';pin=parts[1]||'';}
+    else{name=text;}
+  }
+  if(name)$('login-name').value=name;
+  if(pin)$('login-pin').value=pin;
+  $('qr-error').classList.add('hidden');
+  showToast('QR data detected. Verify and login.','success');
+}
+
+$('qr-apply-btn').addEventListener('click',()=>applyQrPayload($('qr-payload').value));
+
+// ============================================================
+//  Init
+// ============================================================
+async function init(){
+  try{await loadSession();}catch{}
+  try{
+    await loadBootstrap();
+  }catch{
+    showToast('Unable to load latest student dashboard data.','error');
+  }
+
+  if(state.session.logged_in){
+    renderMainPage();
+    $('hdr-student').textContent=state.session.student_name;
+    $('logged-as').textContent=state.session.student_name;
+    renderMenuBanner();renderHistory();renderImpact();
+    await loadQrCode();
+    await loadMealReminders();
+  }else{
+    renderLoginPage();
+  }
+
+  // clock ticker
+  setInterval(()=>{
+    state.now=new Date();
+    if(state.session.logged_in)updateClock();
+  },1000);
+
+  // bootstrap refresh every 30s
+  setInterval(async()=>{
+    try{await loadBootstrap(state.session.logged_in?state.session.student_name:state.selectedStudent);}catch{}
+    if(state.session.logged_in){renderMenuBanner();renderHistory();renderImpact();}
+  },30000);
+}
+
+init();
+</script>
+</body>
+</html>

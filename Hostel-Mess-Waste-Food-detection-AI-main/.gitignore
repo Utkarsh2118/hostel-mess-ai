@@ -1,0 +1,32 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Secrets and local config
+.env
+.env.*
+
+# VS Code local settings
+.vscode/
+
+# OS files
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Build / test artifacts
+build/
+dist/
+frontend/node_modules/
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+menu_feedback.csv

@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Mess AI — Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --em-100:#d1fae5;--em-200:#a7f3d0;--em-500:#10b981;--em-600:#059669;--em-700:#047857;
+  --sl-50:#f8fafc;--sl-100:#f1f5f9;--sl-200:#e2e8f0;--sl-300:#cbd5e1;
+  --sl-500:#64748b;--sl-600:#475569;--sl-700:#334155;--sl-800:#1e293b;--sl-900:#0f172a;
+  --rose-50:#fff1f2;--rose-200:#fecdd3;--rose-500:#f43f5e;--rose-600:#e11d48;
+  --amber-50:#fffbeb;--amber-200:#fde68a;--amber-700:#b45309;--amber-800:#92400e;
+  --sidebar-w:18rem;--sidebar-collapsed:5rem;
+  --font:'Sora',sans-serif;
+}
+body{font-family:var(--font);background:#f9fafb;color:#0f172a;min-height:100vh}
+
+/* -------- layout -------- */
+.layout{display:flex;min-height:100vh;max-width:1600px;margin:0 auto}
+
+/* -------- sidebar -------- */
+.sidebar{width:var(--sidebar-w);background:#111827;color:#fff;padding:1.25rem 1rem;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto;transition:width .2s;flex-shrink:0}
+.sidebar.collapsed{width:var(--sidebar-collapsed)}
+.sidebar-logo{display:grid;place-items:center;height:2.75rem;width:2.75rem;border-radius:1rem;background:rgba(16,185,129,.2);color:#34d399;flex-shrink:0}
+.sidebar-title{font-size:1.1rem;font-weight:700;white-space:nowrap;overflow:hidden}
+.sidebar-sub{font-size:.7rem;color:#94a3b8;white-space:nowrap;overflow:hidden}
+.sidebar-toggle{border-radius:.75rem;background:#1e293b;padding:.5rem;color:#cbd5e1;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.sidebar-toggle:hover{background:#334155}
+.nav-item{display:flex;align-items:center;gap:.75rem;border-radius:9999px;padding:.5rem .75rem;font-size:.875rem;font-weight:500;color:#cbd5e1;cursor:pointer;transition:all .15s;text-decoration:none;border:none;background:none;width:100%;text-align:left}
+.nav-item:hover{background:#1e293b}
+.nav-item.active{background:#16a34a;color:#fff}
+.nav-item svg{flex-shrink:0}
+.nav-label{white-space:nowrap;overflow:hidden}
+.sidebar.collapsed .nav-label,.sidebar.collapsed .sidebar-title,.sidebar.collapsed .sidebar-sub{display:none}
+.sidebar.collapsed .nav-item{justify-content:center}
+.user-box{margin-top:auto;border-radius:1rem;background:rgba(30,41,59,.7);padding:.75rem}
+.user-avatar{display:grid;place-items:center;height:2.5rem;width:2.5rem;border-radius:9999px;background:#059669;font-weight:700;color:#fff;flex-shrink:0}
+.logout-link{display:inline-flex;align-items:center;gap:.5rem;border-radius:9999px;background:rgba(239,68,68,.2);padding:.5rem .75rem;font-size:.875rem;font-weight:500;color:#fca5a5;text-decoration:none;transition:all .15s;margin-top:.75rem;width:100%;justify-content:center}
+.logout-link:hover{background:rgba(239,68,68,.3)}
+
+/* -------- main content -------- */
+.main-wrap{flex:1;display:flex;flex-direction:column;min-width:0}
+.top-bar{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--sl-200);background:rgba(249,250,251,.95);padding:.75rem 1.5rem;backdrop-filter:blur(8px)}
+.top-bar-label{font-size:.7rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--sl-500)}
+.top-bar-date{font-size:.875rem;color:var(--sl-600)}
+.menu-btn{border-radius:.75rem;background:var(--sl-900);padding:.5rem .75rem;font-size:.875rem;font-weight:700;color:#fff;border:none;cursor:pointer;display:none}
+@media(max-width:900px){.menu-btn{display:block}.sidebar{position:fixed;left:0;top:0;z-index:30;transform:translateX(-100%)}.sidebar.mobile-open{transform:translateX(0)}}
+
+/* -------- pages -------- */
+.page{display:none;padding:1.5rem}
+.page.active{display:block}
+
+/* -------- admin card -------- */
+.admin-card{border-radius:1rem;border:1px solid var(--sl-200);box-shadow:0 2px 8px rgba(0,0,0,.04)}
+.space-y{display:flex;flex-direction:column;gap:1.25rem}
+
+/* -------- stat cards -------- */
+.stats-grid{display:grid;gap:1rem;grid-template-columns:repeat(2,1fr)}
+@media(min-width:1280px){.stats-grid{grid-template-columns:repeat(4,1fr)}}
+.stat-card{background:#fff;padding:1rem;border-radius:1rem;border:1px solid var(--sl-200);box-shadow:0 2px 8px rgba(0,0,0,.04)}
+.stat-icon{border-radius:.75rem;padding:.5rem;display:inline-flex}
+.trend-up{font-size:.875rem;font-weight:700;color:#059669}
+.trend-dn{font-size:.875rem;font-weight:700;color:#e11d48}
+.stat-val{font-size:1.5rem;font-weight:800;margin-top:1rem;color:#0f172a}
+.stat-lbl{font-size:.875rem;color:var(--sl-500)}
+
+/* -------- chart -------- */
+.chart-wrap{height:18rem;position:relative}
+
+/* -------- pill badges -------- */
+.badge{display:inline-flex;border-radius:9999px;padding:.25rem .75rem;font-size:.75rem;font-weight:700}
+.badge-sl{background:var(--sl-100);color:var(--sl-700)}
+.badge-em{background:var(--em-100);color:var(--em-700)}
+.badge-rose{background:#ffe4e6;color:#9f1239}
+.badge-amber{background:var(--amber-50);border:1px solid var(--amber-200);color:var(--amber-700)}
+.meal-pill{border-radius:9999px;border:1px solid;padding:.375rem 1rem;font-size:.875rem;font-weight:700}
+.meal-pill-hi{border-color:#86efac;background:var(--em-100);color:var(--em-700)}
+.meal-pill-lo{border-color:var(--amber-200);background:var(--amber-50);color:var(--amber-700)}
+.meal-pills-row{display:flex;flex-wrap:wrap;gap:.5rem}
+
+/* -------- forms -------- */
+label span.lbl{display:block;font-size:.825rem;font-weight:700;color:var(--sl-700);margin-bottom:.35rem}
+input,select,textarea{width:100%;border:1px solid var(--sl-300);border-radius:.75rem;padding:.5rem .75rem;font-size:.875rem;font-family:var(--font);outline:none;transition:border .15s}
+input:focus,select:focus{border-color:#059669}
+input.err{border-color:#e11d48}
+.err-msg{font-size:.75rem;color:#e11d48;margin-top:.25rem;display:block}
+.grid-2{display:grid;gap:.75rem}
+@media(min-width:768px){.grid-2{grid-template-columns:1fr 1fr}}
+.grid-3{display:grid;gap:.75rem}
+@media(min-width:768px){.grid-3{grid-template-columns:1fr 1fr 1fr}}
+
+/* -------- buttons -------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;border:none;border-radius:.75rem;padding:.625rem 1rem;font-weight:700;font-size:.875rem;font-family:var(--font);cursor:pointer;transition:filter .15s}
+.btn:disabled{opacity:.6;cursor:not-allowed}
+.btn-green{background:#16a34a;color:#fff}
+.btn-green:not(:disabled):hover{filter:brightness(.95)}
+.btn-dark{background:var(--sl-900);color:#fff}
+.btn-dark:not(:disabled):hover{background:var(--sl-800)}
+.btn-rose{background:var(--rose-600);color:#fff}
+.btn-rose:not(:disabled):hover{filter:brightness(.95)}
+.btn-em-outline{background:#fff;border:1px solid var(--sl-300);color:var(--sl-700)}
+.btn-em-outline:hover{border-color:#059669;color:#047857}
+.btn-full{width:100%}
+.btn-pill{border-radius:9999px}
+
+/* -------- toggle -------- */
+.toggle{position:relative;display:inline-flex;height:2.25rem;width:5rem;align-items:center;border-radius:9999px;border:1px solid;cursor:pointer;background:var(--sl-200);border-color:var(--sl-300);transition:all .2s}
+.toggle.on{background:#059669;border-color:#059669}
+.toggle-knob{position:absolute;left:.25rem;height:1.75rem;width:1.75rem;border-radius:9999px;background:#fff;transition:transform .2s;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+.toggle.on .toggle-knob{transform:translateX(2.75rem)}
+.toggle-label{width:100%;text-align:center;font-size:.75rem;font-weight:700;color:#fff;position:relative;z-index:1}
+
+/* -------- table -------- */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;min-width:48rem;border-collapse:separate;border-spacing:0 .25rem;font-size:.875rem}
+thead tr th{padding:.5rem .75rem;text-align:left;font-weight:600;color:var(--sl-500)}
+tbody tr{transition:background .1s}
+tbody tr:nth-child(even){background:var(--sl-50)}
+tbody tr:nth-child(odd){background:#fff}
+td{padding:.5rem .75rem;vertical-align:middle}
+td:first-child{border-radius:.75rem 0 0 .75rem}
+td:last-child{border-radius:0 .75rem .75rem 0}
+
+/* -------- chatbot -------- */
+.chat-area{height:calc(100vh - 16rem);display:flex;flex-direction:column}
+.chat-messages{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:.75rem;padding:.5rem 0 1rem}
+.chat-bubble{max-width:80%;border-radius:1rem;padding:.75rem 1rem;font-size:.875rem}
+.chat-bubble.user{align-self:flex-end;background:#16a34a;color:#fff}
+.chat-bubble.bot{align-self:flex-start;border:1px solid var(--sl-200);background:#fff;color:var(--sl-800);position:relative}
+.ai-badge,.rule-badge{position:absolute;right:.5rem;top:.5rem;border-radius:9999px;padding:.125rem .5rem;font-size:.6rem;font-weight:800}
+.ai-badge{background:var(--em-100);color:var(--em-700)}
+.rule-badge{background:var(--amber-50);color:var(--amber-700)}
+.typing-dots{display:flex;gap:.25rem;align-items:center}
+.dot-anim{height:.5rem;width:.5rem;border-radius:9999px;background:var(--sl-300);animation:bounce .9s infinite}
+.dot-anim:nth-child(2){animation-delay:.15s}
+.dot-anim:nth-child(3){animation-delay:.3s}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-.4rem)}}
+.chip-row{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:.75rem}
+.chip{border-radius:9999px;background:var(--sl-100);padding:.25rem .75rem;font-size:.75rem;font-weight:700;color:var(--sl-700);cursor:pointer;border:none;font-family:var(--font)}
+.chip:hover{background:var(--em-100);color:var(--em-700)}
+
+/* -------- confidence bar -------- */
+.conf-bar-wrap{height:.5rem;width:100%;border-radius:9999px;background:var(--sl-200);overflow:hidden;margin-top:.25rem}
+.conf-bar{height:.5rem;border-radius:9999px}
+.conf-high{background:#059669}
+.conf-mid{background:#f59e0b}
+.conf-low{background:#e11d48}
+
+/* -------- modal -------- */
+.modal-backdrop{position:fixed;inset:0;z-index:40;background:rgba(15,23,42,.4);display:grid;place-items:center;padding:1rem}
+.modal-box{width:100%;max-width:28rem;background:#fff;border-radius:1rem;padding:1.25rem;box-shadow:0 16px 48px rgba(0,0,0,.15)}
+
+/* -------- toast -------- */
+.toast-wrap{position:fixed;right:1rem;top:5rem;z-index:50;animation:slideIn .2s ease}
+.toast-inner{border-radius:.75rem;background:#0f172a;padding:.5rem 1rem;font-size:.875rem;font-weight:700;color:#fff;box-shadow:0 8px 24px rgba(0,0,0,.15)}
+@keyframes slideIn{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}
+
+/* -------- util -------- */
+.hidden{display:none!important}
+.spacer-sm{margin-top:.75rem}
+.spacer{margin-top:1.25rem}
+.divider{border:none;border-top:1px solid var(--sl-200);margin:.75rem 0}
+.sec-label{font-size:.7rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#047857}
+.sec-title{font-size:1.15rem;font-weight:700;color:#0f172a;margin-top:.25rem}
+.text-sm-slate{font-size:.875rem;color:var(--sl-500)}
+.flex-between{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.75rem}
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- ===== SIDEBAR ===== -->
+  <aside class="sidebar" id="sidebar">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-bottom:1.5rem">
+      <div style="display:flex;align-items:center;gap:.75rem;overflow:hidden">
+        <div class="sidebar-logo">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>
+        </div>
+        <div class="overflow-hidden">
+          <p class="sidebar-title">Mess AI</p>
+          <p class="sidebar-sub">Waste Manager</p>
+        </div>
+      </div>
+      <button class="sidebar-toggle" onclick="toggleSidebar()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      </button>
+    </div>
+
+    <nav style="flex:1;display:flex;flex-direction:column;gap:.5rem">
+      <button class="nav-item active" data-page="dashboard" onclick="navTo('dashboard',this)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        <span class="nav-label">Dashboard</span>
+      </button>
+      <button class="nav-item" data-page="add-data" onclick="navTo('add-data',this)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+        <span class="nav-label">Add Data</span>
+      </button>
+      <button class="nav-item" data-page="prediction" onclick="navTo('prediction',this)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2v6l2 2-2 2v6"/><path d="M18 2v6l-2 2 2 2v6"/><path d="M6 12h12"/></svg>
+        <span class="nav-label">Prediction</span>
+      </button>
+      <button class="nav-item" data-page="chatbot" onclick="navTo('chatbot',this)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8V4H8"/><rect x="2" y="2" width="13" height="13" rx="2"/><path d="M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3"/></svg>
+        <span class="nav-label">Chatbot</span>
+      </button>
+    </nav>
+
+    <div class="user-box">
+      <div style="display:flex;align-items:center;gap:.75rem">
+        <div class="user-avatar" id="sb-avatar">AD</div>
+        <div style="min-width:0;flex:1;overflow:hidden">
+          <p id="sb-name" style="font-size:.875rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Admin Desk</p>
+          <p id="sb-role" style="font-size:.7rem;text-transform:uppercase;color:#94a3b8;white-space:nowrap;overflow:hidden">staff</p>
+        </div>
+      </div>
+      <a href="/admin/logout" class="logout-link">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        <span class="nav-label">Logout</span>
+      </a>
+    </div>
+  </aside>
+
+  <!-- ===== MAIN ===== -->
+  <div class="main-wrap">
+    <header class="top-bar">
+      <button class="menu-btn" onclick="toggleMobile()">Menu</button>
+      <p class="top-bar-label">Hostel Mess Management</p>
+      <p class="top-bar-date" id="top-date"></p>
+    </header>
+
+    <main style="flex:1;overflow-y:auto;padding:1.5rem">
+
+      <!-- ===== DASHBOARD PAGE ===== -->
+      <div class="page active" id="page-dashboard">
+        <div class="space-y">
+
+          <div class="flex-between">
+            <div>
+              <h2 style="font-size:1.5rem;font-weight:800">Dashboard</h2>
+              <p class="text-sm-slate">Daily insights, live attendance and waste planning.</p>
+            </div>
+            <button class="btn btn-em-outline btn-pill" onclick="refreshAll()">Refresh</button>
+          </div>
+
+          <!-- stat cards -->
+          <div class="stats-grid" id="stat-cards"></div>
+
+          <!-- chart -->
+          <div class="admin-card" style="background:#fff;padding:1rem">
+            <div style="display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:.75rem" id="chart-badges"></div>
+            <div class="chart-wrap"><canvas id="waste-chart"></canvas></div>
+          </div>
+
+          <!-- live attendance -->
+          <div class="admin-card" style="background:#fff;padding:1rem">
+            <div class="flex-between" style="margin-bottom:.75rem">
+              <h3 style="font-size:1.1rem;font-weight:700">Live Student Attendance</h3>
+              <button class="btn btn-green btn-pill" id="finalize-btn" onclick="openFinalizeModal()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="m9 16 2 2 4-4"/></svg>
+                Finalize Day
+              </button>
+            </div>
+            <div class="meal-pills-row" id="attendance-pills"></div>
+          </div>
+
+          <!-- menu of the day -->
+          <div class="admin-card" style="background:#fff;padding:1rem">
+            <h3 style="font-size:1.1rem;font-weight:700">Meal Of The Day Menu</h3>
+            <p class="text-sm-slate" style="margin-top:.25rem">Update menu items shown on the student dashboard.</p>
+            <div class="grid-2 spacer-sm">
+              <label>
+                <span class="lbl">Meal Slot</span>
+                <select id="menu-meal-sel">
+                  <option>Breakfast</option><option>Lunch</option><option>Tea</option><option>Dinner</option>
+                </select>
+              </label>
+              <label>
+                <span class="lbl">Menu Items</span>
+                <input type="text" id="menu-items-inp" placeholder="Dal, Rice, Sabzi, Salad" required/>
+              </label>
+              <div style="grid-column:1/-1">
+                <button class="btn btn-dark btn-full" onclick="saveMenu()">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 13.87A4 4 0 0 1 7.41 6a5.11 5.11 0 0 1 1.05-1.54 5 5 0 0 1 7.08 0A5.11 5.11 0 0 1 16.59 6 4 4 0 0 1 18 13.87V21H6Z"/><line x1="6" y1="17" x2="18" y2="17"/><line x1="6" y1="13" x2="18" y2="13"/></svg>
+                  Save Menu
+                </button>
+              </div>
+            </div>
+            <p id="menu-updated-lbl" class="text-sm-slate" style="margin-top:.5rem;font-size:.75rem"></p>
+            <p id="menu-msg" class="hidden" style="margin-top:.25rem;font-size:.875rem;font-weight:700;color:#047857"></p>
+          </div>
+
+          <!-- feedback ratings -->
+          <div class="admin-card" style="background:#fff;padding:1rem">
+            <h3 style="font-size:1.1rem;font-weight:700">Menu Feedback Ratings</h3>
+            <p class="text-sm-slate" style="margin-top:.25rem">Daily student ratings for each meal.</p>
+            <div style="display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.75rem" id="feedback-badges"></div>
+            <div style="display:grid;gap:.75rem;grid-template-columns:repeat(auto-fill,minmax(10rem,1fr));margin-top:.75rem" id="feedback-grid"></div>
+          </div>
+
+          <!-- reset attendance -->
+          <div class="admin-card" style="background:#fff;padding:1rem">
+            <h3 style="font-size:1.1rem;font-weight:700">Reset Student Attendance Mark</h3>
+            <p class="text-sm-slate" style="margin-top:.25rem">Use this when a student marked the wrong preference and needs one retry.</p>
+            <div class="grid-3 spacer-sm">
+              <label>
+                <span class="lbl">Date</span>
+                <input type="date" id="rst-date"/>
+              </label>
+              <label>
+                <span class="lbl">Student</span>
+                <input list="admin-student-list" id="rst-student" placeholder="Select student"/>
+                <datalist id="admin-student-list"></datalist>
+              </label>
+              <label>
+                <span class="lbl">Meal</span>
+                <select id="rst-meal">
+                  <option>All</option><option>Breakfast</option><option>Lunch</option><option>Tea</option><option>Dinner</option>
+                </select>
+              </label>
+              <div style="grid-column:1/-1">
+                <button class="btn btn-rose btn-full" onclick="resetAttendance()">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                  Reset Attendance Mark
+                </button>
+              </div>
+            </div>
+            <p id="rst-msg" class="hidden" style="margin-top:.5rem;font-size:.875rem;font-weight:700;color:var(--sl-700)"></p>
+          </div>
+
+          <!-- forgot PIN reset -->
+          <div class="admin-card" style="background:#fff;padding:1rem">
+            <h3 style="font-size:1.1rem;font-weight:700">Forgot PIN Reset</h3>
+            <p class="text-sm-slate" style="margin-top:.25rem">Reset student PIN when they forget credentials.</p>
+            <div class="grid-2 spacer-sm">
+              <label>
+                <span class="lbl">Student</span>
+                <input list="admin-student-list" id="pin-rst-student" placeholder="Select student"/>
+              </label>
+              <label>
+                <span class="lbl">New PIN</span>
+                <input type="text" id="pin-rst-new" value="1234"/>
+              </label>
+              <div style="grid-column:1/-1">
+                <button class="btn btn-dark btn-full" onclick="resetPin()">Reset PIN</button>
+              </div>
+            </div>
+            <p id="pin-rst-msg" class="hidden" style="margin-top:.5rem;font-size:.875rem;font-weight:700;color:var(--sl-700)"></p>
+          </div>
+
+          <!-- meal cutoff reminders -->
+          <div class="admin-card" style="background:#fff;padding:1rem">
+            <h3 style="font-size:1.1rem;font-weight:700">Meal Cutoff Reminders</h3>
+            <p class="text-sm-slate" style="margin-top:.25rem">Send reminders to students 15 minutes before each meal closes.</p>
+            <div class="grid-2 spacer-sm">
+              <div style="border-radius:.75rem;border:1px solid var(--em-200);background:var(--em-100);padding:.75rem">
+                <p style="font-size:.875rem;font-weight:700;color:#065f46">Reminder Status</p>
+                <p style="margin-top:.25rem;font-size:.875rem;color:#047857">Students receive dashboard notifications before meal cutoffs.</p>
+                <p style="margin-top:.5rem;font-size:.75rem;color:#059669">Reminders sent 15 minutes before each meal closes.</p>
+              </div>
+              <div>
+                <button class="btn btn-em-outline btn-full" onclick="sendTestReminder()">Send Test Reminder</button>
+                <p class="text-sm-slate" style="margin-top:.5rem;font-size:.75rem">Send a test reminder for Lunch to all students.</p>
+              </div>
+            </div>
+            <div style="display:grid;gap:.5rem;grid-template-columns:repeat(4,1fr);margin-top:.75rem">
+              ${['Breakfast','Lunch','Tea','Dinner'].map(m=>`<div style="border-radius:1rem;border:1px solid var(--sl-200);background:var(--sl-50);padding:.75rem"><p style="font-size:.875rem;font-weight:700">${m}</p><p style="font-size:.75rem;color:var(--sl-500)">Reminders enabled</p></div>`).join('')}
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ===== ADD DATA PAGE ===== -->
+      <div class="page" id="page-add-data">
+        <div class="space-y">
+          <div>
+            <h2 style="font-size:1.5rem;font-weight:800">Add Data</h2>
+            <p class="text-sm-slate">Capture daily mess operations with quick validation.</p>
+          </div>
+
+          <div class="admin-card" style="background:#fff;padding:1rem">
+            <div class="grid-2">
+              <label>
+                <span class="lbl">Students Present</span>
+                <input type="number" id="ad-students" placeholder="120"/>
+                <span id="ad-students-err" class="err-msg hidden"></span>
+              </label>
+              <label>
+                <span class="lbl">Prepared Food (kg)</span>
+                <input type="number" id="ad-prepared" placeholder="68"/>
+                <span id="ad-prepared-err" class="err-msg hidden"></span>
+              </label>
+              <label>
+                <span class="lbl">Consumed Food (kg)</span>
+                <input type="number" id="ad-consumed" placeholder="62"/>
+                <span id="ad-consumed-err" class="err-msg hidden"></span>
+              </label>
+              <label>
+                <span class="lbl">Waste (kg)</span>
+                <input type="number" id="ad-waste" placeholder="6"/>
+                <span id="ad-waste-err" class="err-msg hidden"></span>
+              </label>
+              <div>
+                <span class="lbl">Is Weekend</span>
+                <button class="toggle" id="tog-weekend" onclick="toggleTog('weekend')">
+                  <span class="toggle-knob"></span>
+                  <span class="toggle-label">No</span>
+                </button>
+              </div>
+              <div>
+                <span class="lbl">Is Exam Period</span>
+                <button class="toggle" id="tog-exam" onclick="toggleTog('exam')">
+                  <span class="toggle-knob"></span>
+                  <span class="toggle-label">No</span>
+                </button>
+              </div>
+              <div style="grid-column:1/-1">
+                <button class="btn btn-green btn-full" onclick="submitAddData()">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  Add Record
+                </button>
+                <p id="ad-msg" class="hidden" style="margin-top:.5rem;font-size:.875rem;font-weight:700;color:#047857"></p>
+              </div>
+            </div>
+          </div>
+
+          <div class="admin-card" style="background:#fff;padding:1rem">
+            <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:.75rem">Recent Records</h3>
+            <div class="tbl-wrap">
+              <table id="records-table">
+                <thead><tr>
+                  <th>Date</th><th>Students</th><th>Prepared (kg)</th><th>Consumed (kg)</th><th>Waste (kg)</th><th>Weekend</th><th>Exam Period</th><th>Delete</th>
+                </tr></thead>
+                <tbody id="records-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== PREDICTION PAGE ===== -->
+      <div class="page" id="page-prediction">
+        <div class="space-y">
+          <div>
+            <h2 style="font-size:1.5rem;font-weight:800">Prediction Engine</h2>
+            <p class="text-sm-slate">Compare forecast scenarios before kitchen prep starts.</p>
+          </div>
+
+          <div style="display:grid;gap:1rem" id="pred-grid">
+            <!-- Scenario A -->
+            <div style="display:flex;flex-direction:column;gap:1rem">
+              <div class="admin-card" style="background:#fff;padding:1rem">
+                <span class="lbl">Meal Slot</span>
+                <select id="pred-meal-a">
+                  <option>Breakfast</option><option selected>Lunch</option><option>Tea</option><option>Dinner</option>
+                </select>
+              </div>
+              <div class="admin-card" style="background:#fff;padding:1rem" id="scenario-a">
+                <label class="lbl">Students Present</label>
+                <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:1rem">
+                  <button class="btn btn-em-outline" onclick="adjStudents('a',-1)" style="padding:.5rem .875rem">−</button>
+                  <input type="number" id="pred-stu-a" value="120" style="text-align:center"/>
+                  <button class="btn btn-em-outline" onclick="adjStudents('a',1)" style="padding:.5rem .875rem">+</button>
+                </div>
+                <div class="grid-2" style="margin-bottom:1rem">
+                  <div><p class="lbl">Weekend</p><button class="toggle" id="tog-pred-weekend-a" onclick="togglePredTog('weekend-a')"><span class="toggle-knob"></span><span class="toggle-label">No</span></button></div>
+                  <div><p class="lbl">Exam Period</p><button class="toggle" id="tog-pred-exam-a" onclick="togglePredTog('exam-a')"><span class="toggle-knob"></span><span class="toggle-label">No</span></button></div>
+                </div>
+                <button class="btn btn-green btn-full" id="pred-btn-a" onclick="predict('a')">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2v6l2 2-2 2v6"/><path d="M18 2v6l-2 2 2 2v6"/><path d="M6 12h12"/></svg>
+                  Predict Waste
+                </button>
+              </div>
+              <div id="pred-result-a" class="hidden admin-card" style="background:#fff;padding:1rem"></div>
+            </div>
+            <!-- Scenario B (hidden initially) -->
+            <div style="display:flex;flex-direction:column;gap:1rem" id="scenario-b-col" class="hidden">
+              <div class="admin-card" style="background:#fff;padding:1rem">
+                <span class="lbl">Meal Slot</span>
+                <select id="pred-meal-b">
+                  <option>Breakfast</option><option>Lunch</option><option>Tea</option><option selected>Dinner</option>
+                </select>
+              </div>
+              <div class="admin-card" style="background:#fff;padding:1rem">
+                <label class="lbl">Students Present</label>
+                <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:1rem">
+                  <button class="btn btn-em-outline" onclick="adjStudents('b',-1)" style="padding:.5rem .875rem">−</button>
+                  <input type="number" id="pred-stu-b" value="120" style="text-align:center"/>
+                  <button class="btn btn-em-outline" onclick="adjStudents('b',1)" style="padding:.5rem .875rem">+</button>
+                </div>
+                <div class="grid-2" style="margin-bottom:1rem">
+                  <div><p class="lbl">Weekend</p><button class="toggle on" id="tog-pred-weekend-b" onclick="togglePredTog('weekend-b')"><span class="toggle-knob" style="transform:translateX(2.75rem)"></span><span class="toggle-label">Yes</span></button></div>
+                  <div><p class="lbl">Exam Period</p><button class="toggle" id="tog-pred-exam-b" onclick="togglePredTog('exam-b')"><span class="toggle-knob"></span><span class="toggle-label">No</span></button></div>
+                </div>
+                <button class="btn btn-green btn-full" id="pred-btn-b" onclick="predict('b')">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2v6l2 2-2 2v6"/><path d="M18 2v6l-2 2 2 2v6"/><path d="M6 12h12"/></svg>
+                  Predict Waste
+                </button>
+              </div>
+              <div id="pred-result-b" class="hidden admin-card" style="background:#fff;padding:1rem"></div>
+            </div>
+          </div>
+
+          <button class="btn btn-em-outline btn-pill" id="compare-btn" onclick="enableCompare()">Compare Another Scenario</button>
+        </div>
+      </div>
+
+      <!-- ===== CHATBOT PAGE ===== -->
+      <div class="page" id="page-chatbot">
+        <div style="display:flex;flex-direction:column;gap:1rem;height:calc(100vh - 8rem)">
+          <div class="flex-between">
+            <div>
+              <h2 style="font-size:1.5rem;font-weight:800">Chatbot</h2>
+              <p class="text-sm-slate">AI/RULE response assistant for operational questions.</p>
+            </div>
+            <button class="btn btn-em-outline" onclick="clearChat()" title="Clear chat">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+
+          <div class="admin-card" style="background:#fff;padding:1rem;flex:1;display:flex;flex-direction:column">
+            <div class="chip-row">
+              <button class="chip" onclick="setInput('How much waste today?')">How much waste today?</button>
+              <button class="chip" onclick="setInput('Food for 120 students?')">Food for 120 students?</button>
+              <button class="chip" onclick="setInput('Weekend estimate?')">Weekend estimate?</button>
+              <button class="chip" onclick="setInput('Exam period impact?')">Exam period impact?</button>
+            </div>
+            <div class="chat-messages" id="chat-messages"></div>
+            <div style="display:flex;align-items:center;gap:.5rem">
+              <input type="text" id="chat-input" placeholder="Type your question..." style="border-radius:9999px;flex:1" onkeydown="if(event.key==='Enter')sendChat()"/>
+              <button class="btn btn-green" style="border-radius:9999px;padding:.625rem" onclick="sendChat()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- ===== FINALIZE MODAL ===== -->
+<div class="modal-backdrop hidden" id="finalize-modal">
+  <div class="modal-box">
+    <h3 style="font-size:1.1rem;font-weight:800">Finalize Today's Attendance?</h3>
+    <p style="margin-top:.5rem;font-size:.875rem;color:var(--sl-600)">This will move pending attendance into the training dataset and refresh model accuracy.</p>
+    <div style="display:flex;justify-content:flex-end;gap:.5rem;margin-top:1rem">
+      <button class="btn btn-em-outline btn-pill" onclick="closeFinalizeModal()">Cancel</button>
+      <button class="btn btn-green btn-pill" onclick="finalizeDay()">Confirm Finalize</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast-wrap hidden" id="admin-toast">
+  <div class="toast-inner" id="admin-toast-inner"></div>
+</div>
+
+<script>
+// ============================================================
+//  State
+// ============================================================
+const FALLBACK_RECORDS=[
+  {id:0,date:'2026-04-11',students_present:102,prepared_kg:58,consumed_kg:53,waste_kg:5,is_weekend:1,is_exam_period:0},
+  {id:1,date:'2026-04-12',students_present:118,prepared_kg:66,consumed_kg:59,waste_kg:7,is_weekend:1,is_exam_period:0},
+  {id:2,date:'2026-04-13',students_present:124,prepared_kg:68,consumed_kg:62,waste_kg:6,is_weekend:0,is_exam_period:1},
+  {id:3,date:'2026-04-14',students_present:116,prepared_kg:63,consumed_kg:57,waste_kg:6,is_weekend:0,is_exam_period:1},
+  {id:4,date:'2026-04-15',students_present:108,prepared_kg:60,consumed_kg:55,waste_kg:5,is_weekend:0,is_exam_period:0},
+  {id:5,date:'2026-04-16',students_present:112,prepared_kg:61,consumed_kg:56,waste_kg:5,is_weekend:0,is_exam_period:0},
+  {id:6,date:'2026-04-17',students_present:121,prepared_kg:66,consumed_kg:59,waste_kg:7,is_weekend:0,is_exam_period:0},
+];
+const FALLBACK_ATTEND={summary:{meal_breakdown:[
+  {meal:'Breakfast',will_eat:89,total_entries:100},
+  {meal:'Lunch',will_eat:112,total_entries:124},
+  {meal:'Tea',will_eat:67,total_entries:88},
+  {meal:'Dinner',will_eat:95,total_entries:109},
+]}};
+const DEFAULT_STATS={total_students:0,predicted_waste:0,suggested_food:0,r2:0,pending_attendance:0};
+const TREND={students:3.2,waste:-4.8,food:2.6,r2:1.4};
+
+let appState={
+  summary:{...DEFAULT_STATS},
+  records:[],
+  attendance:FALLBACK_ATTEND,
+  menuData:{menus:{},updated_at:''},
+  feedbackSummary:{total_feedback:0,avg_rating:0,meal_breakdown:[]},
+  adminSession:{username:'Admin',role:'staff'},
+  togWeekend:false,togExam:false,
+  togPredWeekendA:false,togPredExamA:false,
+  togPredWeekendB:true,togPredExamB:false,
+  confirmDeleteId:null,
+};
+
+let _chart=null;
+
+// ============================================================
+//  Helpers
+// ============================================================
+function $(id){return document.getElementById(id);}
+async function getJSON(url){const r=await fetch(url,{credentials:'same-origin'});if(!r.ok)throw new Error('Failed');return r.json();}
+async function postJSON(url,body){const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)});const d=await r.json();if(!r.ok)throw new Error(d.message||'Failed');return d;}
+
+let _toastTimer=null;
+function showToast(msg){
+  $('admin-toast-inner').textContent=msg;
+  $('admin-toast').classList.remove('hidden');
+  if(_toastTimer)clearTimeout(_toastTimer);
+  _toastTimer=setTimeout(()=>$('admin-toast').classList.add('hidden'),2400);
+}
+
+// ============================================================
+//  Nav
+// ============================================================
+function navTo(page,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
+  $('page-'+page).classList.add('active');
+  btn.classList.add('active');
+  $('sidebar').classList.remove('mobile-open');
+}
+function toggleSidebar(){$('sidebar').classList.toggle('collapsed');}
+function toggleMobile(){$('sidebar').classList.toggle('mobile-open');}
+
+// ============================================================
+//  Toggles
+// ============================================================
+function toggleTog(which){
+  if(which==='weekend'){appState.togWeekend=!appState.togWeekend;applyTog('tog-weekend',appState.togWeekend);}
+  else{appState.togExam=!appState.togExam;applyTog('tog-exam',appState.togExam);}
+}
+function togglePredTog(which){
+  const map={'weekend-a':'togPredWeekendA','exam-a':'togPredExamA','weekend-b':'togPredWeekendB','exam-b':'togPredExamB'};
+  const idMap={'weekend-a':'tog-pred-weekend-a','exam-a':'tog-pred-exam-a','weekend-b':'tog-pred-weekend-b','exam-b':'tog-pred-exam-b'};
+  const key=map[which];
+  appState[key]=!appState[key];
+  applyTog(idMap[which],appState[key]);
+}
+function applyTog(id,val){
+  const el=$(id);
+  if(!el)return;
+  if(val){el.classList.add('on');el.querySelector('.toggle-label').textContent='Yes';}
+  else{el.classList.remove('on');el.querySelector('.toggle-label').textContent='No';}
+}
+
+// ============================================================
+//  Render dashboard
+// ============================================================
+function renderStatCards(){
+  const s=appState.summary;
+  const wasteHigh=+(s.predicted_waste||0)>8;
+  const cards=[
+    {label:'Total Students',value:s.total_students||0,color:'color:#2563eb;background:#dbeafe',trend:TREND.students,icon:'<circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>'},
+    {label:'Predicted Waste',value:`${s.predicted_waste||0} kg`,color:wasteHigh?'color:#d97706;background:#fef3c7':'color:#059669;background:#d1fae5',trend:TREND.waste,icon:'<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>'},
+    {label:'Suggested Food Qty',value:`${s.suggested_food||0} kg`,color:'color:#0f766e;background:#ccfbf1',trend:TREND.food,icon:'<path d="M6 13.87A4 4 0 0 1 7.41 6a5.11 5.11 0 0 1 1.05-1.54 5 5 0 0 1 7.08 0A5.11 5.11 0 0 1 16.59 6 4 4 0 0 1 18 13.87V21H6Z"/><line x1="6" y1="17" x2="18" y2="17"/>'},
+    {label:'Model Accuracy R²',value:s.r2||0,color:'color:#7c3aed;background:#ede9fe',trend:TREND.r2,icon:'<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>'},
+  ];
+  $('stat-cards').innerHTML=cards.map(c=>`
+    <div class="stat-card">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span style="border-radius:.75rem;padding:.5rem;display:inline-flex;${c.color}">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${c.icon}</svg>
+        </span>
+        <span style="font-size:.875rem;font-weight:700;${c.trend>=0?'color:#059669':'color:#e11d48'}">${c.trend>=0?'↗':'↘'} ${Math.abs(c.trend)}%</span>
+      </div>
+      <p class="stat-val">${c.value}</p>
+      <p class="stat-lbl">${c.label}</p>
+    </div>`).join('');
+}
+
+function renderChart(){
+  const rows=(appState.records.length?appState.records:FALLBACK_RECORDS).slice(-7);
+  const labels=rows.map((r,i)=>r.date||`Day ${i+1}`);
+  const actual=rows.map(r=>+(r.waste_kg||0));
+  const predicted=rows.map(r=>+((+(r.waste_kg||0))*1.08).toFixed(2));
+
+  const avgWaste=(actual.reduce((a,b)=>a+b,0)/actual.length).toFixed(2);
+  const bestDay=labels[[...actual].map((v,i)=>[v,i]).sort((a,b)=>a[0]-b[0])[0][1]];
+  const worstDay=labels[[...actual].map((v,i)=>[v,i]).sort((a,b)=>b[0]-a[0])[0][1]];
+
+  $('chart-badges').innerHTML=`
+    <span class="badge badge-sl">Avg Waste This Week: ${avgWaste} kg</span>
+    <span class="badge badge-em">Best Day: ${bestDay}</span>
+    <span class="badge badge-rose">Worst Day: ${worstDay}</span>`;
+
+  const ctx=$('waste-chart').getContext('2d');
+  if(_chart)_chart.destroy();
+  _chart=new Chart(ctx,{
+    type:'line',
+    data:{
+      labels,
+      datasets:[
+        {label:'Actual',data:actual,borderColor:'#16a34a',borderWidth:3,pointRadius:0,tension:.4},
+        {label:'Predicted',data:predicted,borderColor:'#0ea5e9',borderWidth:2,borderDash:[6,6],pointRadius:0,tension:.4},
+      ]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'},tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${ctx.parsed.y} kg`}}},scales:{y:{ticks:{callback:v=>`${v} kg`}}}}
+  });
+}
+
+function renderAttendance(){
+  const meals=appState.attendance?.summary?.meal_breakdown?.length
+    ?appState.attendance.summary.meal_breakdown
+    :FALLBACK_ATTEND.summary.meal_breakdown;
+  $('attendance-pills').innerHTML=meals.map(m=>{
+    const hi=+(m.will_eat||0)>=80;
+    return`<span class="meal-pill ${hi?'meal-pill-hi':'meal-pill-lo'}">${m.meal} ${m.will_eat||0}</span>`;
+  }).join('');
+}
+
+function renderMenuSection(){
+  $('menu-updated-lbl').textContent=appState.menuData?.updated_at?`Last updated: ${appState.menuData.updated_at}`:'';
+  const sel=$('menu-meal-sel').value;
+  const items=appState.menuData?.menus?.[sel]||'';
+  $('menu-items-inp').value=items;
+}
+
+$('menu-meal-sel').addEventListener('change',()=>{
+  const sel=$('menu-meal-sel').value;
+  $('menu-items-inp').value=appState.menuData?.menus?.[sel]||'';
+});
+
+function renderFeedback(){
+  const fb=appState.feedbackSummary;
+  $('feedback-badges').innerHTML=`
+    <span class="badge badge-em">Avg Rating: ${+(fb.avg_rating||0).toFixed(2)} / 5</span>
+    <span class="badge badge-sl">Responses: ${fb.total_feedback||0}</span>`;
+  $('feedback-grid').innerHTML=(fb.meal_breakdown||[]).map(m=>`
+    <div style="border-radius:.75rem;border:1px solid var(--sl-200);background:var(--sl-50);padding:.75rem">
+      <p style="font-size:.875rem;font-weight:700;color:#0f172a">${m.meal}</p>
+      <p style="font-size:.75rem;color:var(--sl-500)">${m.count||0} reviews</p>
+      <p style="margin-top:.25rem;font-size:.875rem;font-weight:700;color:#047857">${+(m.avg_rating||0).toFixed(2)} / 5</p>
+    </div>`).join('');
+}
+
+function renderRecords(){
+  const rows=(appState.records.length?appState.records:FALLBACK_RECORDS).slice(-7).reverse();
+  $('records-tbody').innerHTML=rows.map(r=>`
+    <tr>
+      <td>${r.date||'-'}</td>
+      <td>${r.students_present}</td>
+      <td>${r.prepared_kg}</td>
+      <td>${r.consumed_kg}</td>
+      <td>${r.waste_kg}</td>
+      <td>${r.is_weekend?'Yes':'No'}</td>
+      <td>${r.is_exam_period?'Yes':'No'}</td>
+      <td>
+        ${appState.confirmDeleteId===r.id
+          ?`<div style="display:flex;align-items:center;gap:.5rem">
+              <button class="btn btn-rose btn-pill" style="padding:.25rem .625rem;font-size:.75rem" onclick="confirmDelete(${r.id})">Confirm</button>
+              <button class="btn btn-em-outline btn-pill" style="padding:.25rem .625rem;font-size:.75rem" onclick="cancelDelete()">Cancel</button>
+            </div>`
+          :`<button class="btn" style="background:#ffe4e6;color:#9f1239;border-radius:9999px;padding:.375rem" onclick="startDelete(${r.id})">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+            </button>`}
+      </td>
+    </tr>`).join('');
+}
+
+function renderSidebar(){
+  const {username,role}=appState.adminSession;
+  $('sb-name').textContent=username||'Admin Desk';
+  $('sb-role').textContent=role||'staff';
+  $('sb-avatar').textContent=(username||'AD').substring(0,2).toUpperCase();
+}
+
+function renderStudentList(){
+  const names=appState.attendance?.student_names?.length
+    ?appState.attendance.student_names
+    :Array.from(new Set((appState.attendance?.records||[]).map(r=>String(r.student_name||'').trim()).filter(Boolean)));
+  $('admin-student-list').innerHTML=names.map(n=>`<option value="${n}"></option>`).join('');
+}
+
+function renderAll(){
+  renderStatCards();renderChart();renderAttendance();renderMenuSection();renderFeedback();renderRecords();renderSidebar();renderStudentList();
+}
+
+// ============================================================
+//  API
+// ============================================================
+async function refreshAll(){
+  try{
+    const [sum,rec,att,menu,fb,sess]=await Promise.all([
+      getJSON('/api/summary'),getJSON('/api/data'),getJSON('/api/attendance/live'),
+      getJSON('/api/admin/menu'),getJSON('/api/admin/menu-feedback'),getJSON('/api/admin/session'),
+    ]);
+    appState.summary=sum;
+    appState.records=Array.isArray(rec)?rec.map((r,i)=>({...r,date:r.date||new Date(Date.now()-i*86400000).toISOString().slice(0,10)})):[];
+    appState.attendance=att||FALLBACK_ATTEND;
+    appState.menuData=menu||{menus:{},updated_at:''};
+    appState.feedbackSummary=fb||{total_feedback:0,avg_rating:0,meal_breakdown:[]};
+    appState.adminSession=sess||{username:'Admin',role:'staff'};
+  }catch{
+    appState.records=FALLBACK_RECORDS;
+    appState.attendance=FALLBACK_ATTEND;
+  }
+  renderAll();
+}
+
+async function saveMenu(){
+  const meal=$('menu-meal-sel').value;
+  const items=$('menu-items-inp').value.trim();
+  if(!items){showMsg('menu-msg','Please enter menu items.','#e11d48');return;}
+  const canManage=['manager','superadmin'].includes(appState.adminSession.role);
+  if(!canManage){showMsg('menu-msg','Only manager/superadmin can update menu.','#e11d48');return;}
+  try{
+    const p=await postJSON('/api/admin/menu',{meal,items});
+    if(p.menu)appState.menuData=p.menu;
+    showMsg('menu-msg',p.message||'Menu updated.','#047857');
+    $('menu-updated-lbl').textContent=`Last updated: ${appState.menuData.updated_at||'just now'}`;
+  }catch(e){showMsg('menu-msg',e.message||'Unable to update menu.','#e11d48');}
+}
+
+async function resetAttendance(){
+  const date=$('rst-date').value;
+  const student=$('rst-student').value.trim();
+  const meal=$('rst-meal').value;
+  if(!student){showMsg('rst-msg','Please select a student.','#e11d48');return;}
+  try{
+    const p=await postJSON('/api/admin/attendance/reset',{date,student_name:student,meal_slot:meal});
+    showMsg('rst-msg',p.message||'Attendance reset.','#047857');
+    await refreshAll();
+  }catch(e){showMsg('rst-msg',e.message||'Unable to reset.','#e11d48');}
+}
+
+async function resetPin(){
+  const student=$('pin-rst-student').value.trim();
+  const newPin=$('pin-rst-new').value.trim();
+  const canManage=['manager','superadmin'].includes(appState.adminSession.role);
+  if(!canManage){showMsg('pin-rst-msg','Only manager/superadmin can reset PIN.','#e11d48');return;}
+  if(!student){showMsg('pin-rst-msg','Please select a student.','#e11d48');return;}
+  try{
+    const p=await postJSON('/api/admin/student/pin/reset',{student_name:student,new_pin:newPin});
+    showMsg('pin-rst-msg',p.message||'PIN reset completed.','#047857');
+  }catch(e){showMsg('pin-rst-msg',e.message||'Unable to reset PIN.','#e11d48');}
+}
+
+function showMsg(id,msg,color){
+  const el=$(id);
+  el.textContent=msg;
+  el.style.color=color;
+  el.classList.remove('hidden');
+}
+
+async function sendTestReminder(){
+  const canManage=['manager','superadmin'].includes(appState.adminSession.role);
+  if(!canManage){alert('Only manager/superadmin can test reminders.');return;}
+  try{const p=await postJSON('/api/admin/meal-reminders/test',{meal:'Lunch'});alert(p.message||'Test reminder sent!');}
+  catch(e){alert(e.message||'Unable to send test reminder.');}
+}
+
+// ============================================================
+//  Add Data
+// ============================================================
+function toggleTog(which){
+  if(which==='weekend'){appState.togWeekend=!appState.togWeekend;applyTog('tog-weekend',appState.togWeekend);}
+  else{appState.togExam=!appState.togExam;applyTog('tog-exam',appState.togExam);}
+}
+
+async function submitAddData(){
+  const canManage=['manager','superadmin'].includes(appState.adminSession.role);
+  if(!canManage){showMsg('ad-msg','Only manager/superadmin can add records.','#e11d48');return;}
+  ['students','prepared','consumed','waste'].forEach(f=>{$(`ad-${f}-err`).classList.add('hidden');$(`ad-${f}`).classList.remove('err');});
+  let ok=true;
+  const vals={};
+  for(const[field,id]of[['students_present','ad-students'],['prepared_kg','ad-prepared'],['consumed_kg','ad-consumed'],['waste_kg','ad-waste']]){
+    const v=$(`#${id}`)?.value||$(id).value;
+    if(!String(v).trim()){$(`${id}-err`).textContent='Required';$(`${id}-err`).classList.remove('hidden');$(id).classList.add('err');ok=false;}
+    else vals[field]=+v;
+  }
+  if(+(vals.waste_kg||0)>+(vals.prepared_kg||0)){$('ad-waste-err').textContent='Waste cannot exceed Prepared Food';$('ad-waste-err').classList.remove('hidden');$('ad-waste').classList.add('err');ok=false;}
+  if(!ok)return;
+  try{
+    await postJSON('/api/data/add',{...vals,is_weekend:appState.togWeekend?1:0,is_exam_period:appState.togExam?1:0});
+    ['ad-students','ad-prepared','ad-consumed','ad-waste'].forEach(id=>$(id).value='');
+    appState.togWeekend=false;appState.togExam=false;
+    applyTog('tog-weekend',false);applyTog('tog-exam',false);
+    showMsg('ad-msg','Record added successfully.','#047857');
+    await refreshAll();
+  }catch(e){showMsg('ad-msg',e.message||'Unable to add record.','#e11d48');}
+}
+
+function startDelete(id){appState.confirmDeleteId=id;renderRecords();}
+function cancelDelete(){appState.confirmDeleteId=null;renderRecords();}
+async function confirmDelete(id){
+  const canManage=['manager','superadmin'].includes(appState.adminSession.role);
+  if(!canManage){showToast('Only manager/superadmin can delete records');appState.confirmDeleteId=null;renderRecords();return;}
+  try{await postJSON(`/api/data/${id}/delete`,{});appState.confirmDeleteId=null;showToast('Record deleted');await refreshAll();}
+  catch(e){showToast(e.message||'Unable to delete');appState.confirmDeleteId=null;renderRecords();}
+}
+
+// ============================================================
+//  Prediction
+// ============================================================
+function adjStudents(which,delta){
+  const id=`pred-stu-${which}`;
+  const el=$(id);
+  el.value=Math.max(1,+(el.value||0)+delta);
+}
+
+function togglePredTog(which){
+  const map={'weekend-a':'togPredWeekendA','exam-a':'togPredExamA','weekend-b':'togPredWeekendB','exam-b':'togPredExamB'};
+  const idMap={'weekend-a':'tog-pred-weekend-a','exam-a':'tog-pred-exam-a','weekend-b':'tog-pred-weekend-b','exam-b':'tog-pred-exam-b'};
+  const key=map[which];appState[key]=!appState[key];applyTog(idMap[which],appState[key]);
+}
+
+async function predict(which){
+  const stu=+$(`pred-stu-${which}`).value||120;
+  const meal=$(`pred-meal-${which}`).value;
+  const weekend=appState[which==='a'?'togPredWeekendA':'togPredWeekendB'];
+  const exam=appState[which==='a'?'togPredExamA':'togPredExamB'];
+  const btnId=`pred-btn-${which}`;
+  $(btnId).textContent='Predicting...';$(btnId).disabled=true;
+  try{
+    const [p,mp]=await Promise.all([
+      postJSON('/api/predict',{students_present:stu,is_weekend:weekend?1:0,is_exam_period:exam?1:0,meal_slot:meal}),
+      postJSON('/api/predict/meal',{students_present:stu,is_weekend:weekend?1:0,is_exam_period:exam?1:0,meal_slot:meal}),
+    ]);
+    const uncertainty=Math.max(5,Math.min(95,100-+(p.r2||0)*100));
+    const conf=100-uncertainty;
+    const barCol=uncertainty<35?'conf-high':uncertainty<65?'conf-mid':'conf-low';
+    const resultEl=$(`pred-result-${which}`);
+    resultEl.innerHTML=`
+      <p class="text-sm-slate">Predicted Waste</p>
+      <p style="font-size:2rem;font-weight:800;color:#0f172a">${mp.predicted_waste} kg</p>
+      <p style="margin-top:.5rem;font-size:.875rem;font-weight:700;color:var(--sl-700)">Suggested Food Quantity: ${mp.suggested_food} kg</p>
+      <div style="margin-top:.75rem">
+        <div style="display:flex;justify-content:space-between;font-size:.75rem;font-weight:700;color:var(--sl-500);margin-bottom:.25rem"><span>Confidence</span><span>${conf.toFixed(0)}%</span></div>
+        <div class="conf-bar-wrap"><div class="conf-bar ${barCol}" style="width:${conf}%"></div></div>
+      </div>
+      <p style="margin-top:.75rem;border-radius:.75rem;background:var(--em-100);padding:.5rem .75rem;font-size:.875rem;color:var(--em-700)">Exam periods typically increase food consumption by around 12% in hostel patterns.</p>`;
+    resultEl.classList.remove('hidden');
+  }catch(e){showToast(e.message||'Prediction failed');}
+  finally{$(btnId).textContent='Predict Waste';$(btnId).disabled=false;}
+}
+
+function enableCompare(){
+  $('scenario-b-col').classList.remove('hidden');
+  $('pred-grid').style.gridTemplateColumns='1fr 1fr';
+  $('compare-btn').classList.add('hidden');
+}
+
+// ============================================================
+//  Chatbot
+// ============================================================
+let chatMessages=[{role:'bot',text:'Hello Admin! Ask about waste or food quantity.',source:'ai'}];
+
+function renderChat(){
+  const wrap=$('chat-messages');
+  wrap.innerHTML=chatMessages.map(m=>{
+    if(m.role==='user')return`<div style="display:flex;justify-content:flex-end"><div class="chat-bubble user">${m.text}</div></div>`;
+    const badge=m.source==='ai'?'<span class="ai-badge">AI</span>':'<span class="rule-badge">RULE</span>';
+    return`<div style="display:flex;justify-content:flex-start"><div class="chat-bubble bot">${badge}<p style="padding-right:2rem">${m.text}</p></div></div>`;
+  }).join('');
+  wrap.scrollTop=wrap.scrollHeight;
+}
+
+function setInput(text){$('chat-input').value=text;}
+
+async function sendChat(){
+  const msg=$('chat-input').value.trim();
+  if(!msg)return;
+  chatMessages.push({role:'user',text:msg});
+  $('chat-input').value='';
+  chatMessages.push({role:'bot',text:'...', source:'rule',_typing:true});
+  renderChat();
+  try{
+    const r=await postJSON('/api/chatbot',{message:msg});
+    chatMessages=chatMessages.filter(m=>!m._typing);
+    chatMessages.push({role:'bot',text:r.reply,source:r.source||'rule'});
+  }catch{
+    chatMessages=chatMessages.filter(m=>!m._typing);
+    chatMessages.push({role:'bot',text:'Unable to get a response. Please try again.',source:'rule'});
+  }
+  renderChat();
+}
+
+function clearChat(){chatMessages=[];renderChat();}
+
+// ============================================================
+//  Finalize modal
+// ============================================================
+function openFinalizeModal(){$('finalize-modal').classList.remove('hidden');}
+function closeFinalizeModal(){$('finalize-modal').classList.add('hidden');}
+async function finalizeDay(){
+  try{
+    await postJSON('/api/attendance/finalize-day',{is_exam_period:0});
+    showToast('Day finalized and model refreshed');
+    closeFinalizeModal();
+    await refreshAll();
+  }catch(e){showToast(e.message||'Unable to finalize day');closeFinalizeModal();}
+}
+
+// ============================================================
+//  Init
+// ============================================================
+$('top-date').textContent=new Date().toLocaleDateString();
+$('rst-date').value=new Date().toISOString().slice(0,10);
+renderChat();
+refreshAll().catch(()=>{renderAll();});
+</script>
+</body>
+</html>
