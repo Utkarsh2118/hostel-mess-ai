@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: hostel-mess-ai
+    env: python
+    plan: free
+    region: oregon
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: CHATBOT_API_KEY
+        sync: false
+      - key: CHATBOT_MODEL
+        value: gemini-1.5-flash

@@ -19,6 +19,28 @@ python app.py
 
 Student page: http://127.0.0.1:5000/student
 
+## Deploy on Render
+
+This repo includes [render.yaml](render.yaml) for quick deployment.
+
+1. Push this project to GitHub.
+2. Open Render dashboard and choose **New +** -> **Blueprint**.
+3. Select this GitHub repository.
+4. Render auto-detects [render.yaml](render.yaml) and creates the web service.
+5. Add `CHATBOT_API_KEY` in Render environment variables.
+
+Start command used on Render:
+
+```bash
+gunicorn app:app
+```
+
+### Important (Data Persistence)
+
+This app writes to local files like `attendance.csv`, `menu.json`, and `menu_feedback.csv`.
+On free/stateless hosting, these files may reset on redeploy/restart. For production, use a database
+or attach persistent storage.
+
 ## Student Frontend (Vite + React + Tailwind)
 
 The student-facing page is now built from the frontend app in [frontend](frontend).
