@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 import json
 import os
+os.environ['TZ'] = 'Asia/Kolkata'
 from pathlib import Path
 import re
 from urllib import error as url_error
@@ -101,7 +102,6 @@ def load_attendance() -> pd.DataFrame:
 
     attendance = pd.read_csv(ATTENDANCE_PATH)
 
-    # Keep backward compatibility with older attendance files.
     for col in ATTENDANCE_COLUMNS:
         if col not in attendance.columns:
             attendance[col] = 0 if col == "finalized" else ""
@@ -115,7 +115,6 @@ def load_attendance() -> pd.DataFrame:
 def ensure_menu_file() -> None:
     if MENU_PATH.exists():
         return
-
     MENU_PATH.write_text(json.dumps(DEFAULT_MENU, indent=2), encoding="utf-8")
 
 
@@ -147,7 +146,6 @@ def normalize_name(value: str) -> str:
 def ensure_admin_users_file() -> None:
     if ADMIN_USERS_PATH.exists():
         return
-
     ADMIN_USERS_PATH.write_text(json.dumps(DEFAULT_ADMIN_USERS, indent=2), encoding="utf-8")
 
 
@@ -191,7 +189,6 @@ def load_admin_users() -> dict[str, dict[str, str]]:
 def ensure_feedback_file() -> None:
     if FEEDBACK_PATH.exists():
         return
-
     pd.DataFrame(columns=FEEDBACK_COLUMNS).to_csv(FEEDBACK_PATH, index=False)
 
 
@@ -215,10 +212,7 @@ def ensure_student_credentials_file() -> None:
         return
 
     records = [
-        {
-            "student_name": name,
-            "pin": DEFAULT_STUDENT_PIN,
-        }
+        {"student_name": name, "pin": DEFAULT_STUDENT_PIN}
         for name in DEFAULT_STUDENT_NAMES
     ]
     STUDENT_CREDENTIALS_PATH.write_text(json.dumps(records, indent=2), encoding="utf-8")
@@ -558,7 +552,6 @@ def call_chatbot_llm(message: str, dataset: pd.DataFrame, trained: dict) -> dict
         },
     }
 
-    # Try configured model first, then fallbacks that are commonly available.
     model_candidates = [CHATBOT_MODEL] + [
         model for model in CHATBOT_MODEL_FALLBACKS if model != CHATBOT_MODEL
     ]
@@ -611,7 +604,6 @@ def call_chatbot_llm(message: str, dataset: pd.DataFrame, trained: dict) -> dict
             if body and "quota" in body.lower():
                 return {"text": None, "error": "quota_exceeded"}
 
-            # If model is not found, try next candidate.
             if exc.code == 404:
                 last_error = "model_not_found"
                 continue
@@ -861,9 +853,7 @@ def api_student_bootstrap():
     monthly_rows["name_norm"] = monthly_rows["student_name"].astype(str).str.strip().str.lower()
 
     student_monthly_count = int(
-        (
-            monthly_rows["name_norm"] == selected_student.strip().lower()
-        ).sum()
+        (monthly_rows["name_norm"] == selected_student.strip().lower()).sum()
     )
     impact_saved_kg = round(1.2 + student_monthly_count * 0.12, 1)
 
@@ -1159,9 +1149,7 @@ def api_finalize_day():
     if attendance.empty:
         return jsonify({"success": False, "message": "No attendance data available."}), 400
 
-    attendance["date_key"] = pd.to_datetime(attendance["timestamp"], errors="coerce").dt.strftime(
-        "%Y-%m-%d"
-    )
+    attendance["date_key"] = pd.to_datetime(attendance["timestamp"], errors="coerce").dt.strftime("%Y-%m-%d")
     pending_mask = (attendance["date_key"] == date_key) & (attendance["finalized"] == 0)
     pending_rows = attendance[pending_mask].copy()
 
@@ -1320,9 +1308,7 @@ def api_predict_by_meal():
 
     df = load_dataset(DATASET_PATH)
     trained = train_waste_model(df)
-    base_waste = float(
-        predict_waste(trained["model"], students_present, is_weekend, is_exam_period)
-    )
+    base_waste = float(predict_waste(trained["model"], students_present, is_weekend, is_exam_period))
     base_food = float(suggested_food_quantity(df, students_present))
     multiplier = float(MEAL_FORECAST_MULTIPLIERS[meal_slot])
 
@@ -1358,7 +1344,6 @@ def api_chatbot():
     df = load_dataset(DATASET_PATH)
     trained = train_waste_model(df)
 
-    # Extract a student count from natural language, fallback to latest known value.
     match = re.search(r"(\d+)", message)
     students_present = (
         int(match.group(1))
@@ -1371,9 +1356,7 @@ def api_chatbot():
     is_weekend = 1 if re.search(r"weekend|saturday|sunday", message) else 0
     is_exam_period = 1 if re.search(r"exam|test|mid|final", message) else 0
 
-    predicted_waste = predict_waste(
-        trained["model"], students_present, is_weekend, is_exam_period
-    )
+    predicted_waste = predict_waste(trained["model"], students_present, is_weekend, is_exam_period)
     food_kg = suggested_food_quantity(df, students_present)
 
     ai_result = call_chatbot_llm(message, df, trained)
@@ -1385,12 +1368,7 @@ def api_chatbot():
         text = ai_text
     else:
         text = chatbot_fallback_message(
-            message,
-            students_present,
-            predicted_waste,
-            food_kg,
-            is_weekend,
-            is_exam_period,
+            message, students_present, predicted_waste, food_kg, is_weekend, is_exam_period,
         )
 
     return jsonify(
@@ -1400,9 +1378,7 @@ def api_chatbot():
             "suggested_food": food_kg,
             "r2": trained["r2"],
             "source": source,
-            "fallback_reason": chatbot_fallback_reason(ai_error)
-            if ai_error and source == "rule"
-            else None,
+            "fallback_reason": chatbot_fallback_reason(ai_error) if ai_error and source == "rule" else None,
         }
     )
 
@@ -1464,6 +1440,7 @@ def api_admin_menu_feedback():
     feedback = load_feedback()
     return jsonify(compute_feedback_summary(feedback, date_key))
 
+
 @app.route("/api/admin/menu", methods=["GET", "POST"])
 def api_admin_menu():
     if not admin_required():
@@ -1488,13 +1465,7 @@ def api_admin_menu():
     menu_data["updated_at"] = datetime.now().strftime("%I:%M %p")
     save_menu(menu_data)
 
-    return jsonify(
-        {
-            "success": True,
-            "message": f"{meal} menu updated.",
-            "menu": menu_data,
-        }
-    )
+    return jsonify({"success": True, "message": f"{meal} menu updated.", "menu": menu_data})
 
 
 @app.route("/api/admin/student/pin/reset", methods=["POST"])
@@ -1527,7 +1498,6 @@ def api_admin_student_pin_reset():
 
 @app.route("/api/student/qr-code", methods=["GET"])
 def api_student_qr_code():
-    """Generate QR code for student login. QR contains student name and PIN in JSON format."""
     if not student_required():
         return jsonify({"success": False, "message": "Please login first."}), 401
 
@@ -1538,13 +1508,11 @@ def api_student_qr_code():
     if not user:
         return jsonify({"success": False, "message": "Student not found."}), 404
 
-    # Create QR code data with student name and PIN
     qr_data = json.dumps({
         "student_name": student_name,
         "pin": user.get("pin", DEFAULT_STUDENT_PIN)
     })
 
-    # Generate QR code
     qr = qrcode.QRCode(
         version=1,
         error_correction=qrcode.constants.ERROR_CORRECT_L,
@@ -1556,7 +1524,6 @@ def api_student_qr_code():
 
     img = qr.make_image(fill_color="black", back_color="white")
 
-    # Convert to base64
     buffer = BytesIO()
     img.save(buffer, format="PNG")
     buffer.seek(0)
@@ -1572,7 +1539,6 @@ def api_student_qr_code():
 
 @app.route("/api/admin/meal-reminders", methods=["GET"])
 def api_admin_meal_reminders():
-    """Get current meal reminder settings."""
     if not admin_required():
         return jsonify({"error": "Unauthorized"}), 401
     if not admin_has_role("manager"):
@@ -1591,7 +1557,6 @@ def api_admin_meal_reminders():
         "next_reminders": []
     }
 
-    # Calculate next reminder times
     now = datetime.now()
     for meal in MEAL_WINDOWS:
         end_time = datetime.combine(now.date(), datetime.min.time()).replace(
@@ -1611,7 +1576,6 @@ def api_admin_meal_reminders():
 
 @app.route("/api/admin/meal-reminders/test", methods=["POST"])
 def api_test_meal_reminder():
-    """Send a test meal reminder notification."""
     if not admin_required():
         return jsonify({"error": "Unauthorized"}), 401
     if not admin_has_role("manager"):
@@ -1623,7 +1587,6 @@ def api_test_meal_reminder():
     if meal_name not in {m["meal"] for m in MEAL_WINDOWS}:
         return jsonify({"success": False, "message": "Invalid meal slot."}), 400
 
-    # Log the test reminder
     now = datetime.now()
     test_log = {
         "timestamp": now.isoformat(),
@@ -1642,7 +1605,6 @@ def api_test_meal_reminder():
 
 @app.route("/api/student/meal-reminders", methods=["GET"])
 def api_student_meal_reminders():
-    """Get upcoming meal reminders for the logged-in student."""
     if not student_required():
         return jsonify({"error": "Unauthorized"}), 401
 
