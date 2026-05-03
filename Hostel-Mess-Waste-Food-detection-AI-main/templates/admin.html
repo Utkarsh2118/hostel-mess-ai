@@ -526,10 +526,12 @@ td:last-child{border-radius:0 .75rem .75rem 0}
 
           <div class="admin-card" style="background:#fff;padding:1rem;flex:1;display:flex;flex-direction:column">
             <div class="chip-row">
-              <button class="chip" onclick="setInput('How much waste today?')">How much waste today?</button>
-              <button class="chip" onclick="setInput('Food for 120 students?')">Food for 120 students?</button>
-              <button class="chip" onclick="setInput('Weekend estimate?')">Weekend estimate?</button>
-              <button class="chip" onclick="setInput('Exam period impact?')">Exam period impact?</button>
+              <button class="chip" onclick="setInput('Food for 120 students at lunch?')">🍱 Lunch for 120</button>
+              <button class="chip" onclick="setInput('How much food for 80 students at dinner?')">🌙 Dinner for 80</button>
+              <button class="chip" onclick="setInput('Waste estimate for 100 students at lunch?')">🗑️ Waste at lunch</button>
+              <button class="chip" onclick="setInput('Food for 90 students on weekend?')">📅 Weekend estimate</button>
+              <button class="chip" onclick="setInput('Food for 110 students during exam period?')">📝 Exam period</button>
+              <button class="chip" onclick="setInput('How to reduce dinner food waste?')">💡 Reduce waste tips</button>
             </div>
             <div class="chat-messages" id="chat-messages"></div>
             <div style="display:flex;align-items:center;gap:.5rem">
@@ -949,15 +951,59 @@ function enableCompare(){
 // ============================================================
 //  Chatbot
 // ============================================================
-let chatMessages=[{role:'bot',text:'Hello Admin! Ask about waste or food quantity.',source:'ai'}];
+let chatMessages=[{role:'bot',text:'Namaste Admin! 👋\n\nAsk me about:\n• Food quantities per item (Dal, Chawal, Sabzi…)\n• Waste estimates per menu item\n• Weekend or exam adjustments\n\nExample: "Food for 120 students at lunch?"',source:'ai'}];
+
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function formatBotText(text){
+  // Render newlines as <br>, and bold lines starting with emoji or "Total"
+  return text.split('\n').map(line=>{
+    const l=line.trim();
+    if(!l)return '<br>';
+    // Item lines like "  • Dal: 8 kg" — render as a styled row
+    if(l.startsWith('•')){
+      const parts=l.replace('•','').split(':');
+      if(parts.length>=2){
+        const name=escHtml(parts[0].trim());
+        const qty=escHtml(parts.slice(1).join(':').trim());
+        return `<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #e8f4ef;font-size:.82rem"><span style="color:#335348">${name}</span><span style="font-weight:600;color:#0f7a5a">${qty}</span></div>`;
+      }
+    }
+    // Header lines (contain 📋 or 🗑️)
+    if(l.includes('📋')||l.includes('🗑️')){
+      return `<div style="font-weight:700;margin:4px 0 6px;font-size:.85rem;color:#13291f">${escHtml(l)}</div>`;
+    }
+    // Total lines
+    if(l.toLowerCase().startsWith('total')){
+      return `<div style="font-weight:700;padding-top:5px;font-size:.83rem;color:#0d7c5f">${escHtml(l)}</div>`;
+    }
+    return `<div style="line-height:1.5;font-size:.85rem">${escHtml(l)}</div>`;
+  }).join('');
+}
 
 function renderChat(){
   const wrap=$('chat-messages');
   wrap.innerHTML=chatMessages.map(m=>{
-    if(m.role==='user')return`<div style="display:flex;justify-content:flex-end"><div class="chat-bubble user">${m.text}</div></div>`;
+    if(m.role==='user'){
+      return`<div style="display:flex;justify-content:flex-end"><div class="chat-bubble user" style="white-space:pre-wrap">${escHtml(m.text)}</div></div>`;
+    }
+    if(m._typing){
+      return`<div style="display:flex;justify-content:flex-start"><div class="chat-bubble bot" style="display:flex;gap:4px;align-items:center;min-width:52px">
+        <span style="width:7px;height:7px;background:#9ca3af;border-radius:50%;display:inline-block;animation:tdot 1s infinite"></span>
+        <span style="width:7px;height:7px;background:#9ca3af;border-radius:50%;display:inline-block;animation:tdot 1s .2s infinite"></span>
+        <span style="width:7px;height:7px;background:#9ca3af;border-radius:50%;display:inline-block;animation:tdot 1s .4s infinite"></span>
+      </div></div>`;
+    }
     const badge=m.source==='ai'?'<span class="ai-badge">AI</span>':'<span class="rule-badge">RULE</span>';
-    return`<div style="display:flex;justify-content:flex-start"><div class="chat-bubble bot">${badge}<p style="padding-right:2rem">${m.text}</p></div></div>`;
+    const mealTag=m.meal_slot&&m.meal_slot!=='Lunch'?`<span style="font-size:.7rem;background:#e8f4ef;color:#0b7055;padding:1px 7px;border-radius:99px;margin-left:4px">${escHtml(m.meal_slot)}</span>`:'';
+    return`<div style="display:flex;justify-content:flex-start"><div class="chat-bubble bot"><div style="display:flex;align-items:center;gap:4px;margin-bottom:6px">${badge}${mealTag}</div><div>${formatBotText(m.text)}</div></div></div>`;
   }).join('');
+  // inject keyframe if not present
+  if(!document.getElementById('tdot-style')){
+    const s=document.createElement('style');s.id='tdot-style';
+    s.textContent='@keyframes tdot{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}}';
+    document.head.appendChild(s);
+  }
   wrap.scrollTop=wrap.scrollHeight;
 }
 
@@ -968,12 +1014,12 @@ async function sendChat(){
   if(!msg)return;
   chatMessages.push({role:'user',text:msg});
   $('chat-input').value='';
-  chatMessages.push({role:'bot',text:'...', source:'rule',_typing:true});
+  chatMessages.push({role:'bot',text:'',source:'rule',_typing:true});
   renderChat();
   try{
     const r=await postJSON('/api/chatbot',{message:msg});
     chatMessages=chatMessages.filter(m=>!m._typing);
-    chatMessages.push({role:'bot',text:r.reply,source:r.source||'rule'});
+    chatMessages.push({role:'bot',text:r.reply||'No response.',source:r.source||'rule',meal_slot:r.meal_slot||''});
   }catch{
     chatMessages=chatMessages.filter(m=>!m._typing);
     chatMessages.push({role:'bot',text:'Unable to get a response. Please try again.',source:'rule'});
