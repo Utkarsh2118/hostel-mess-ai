@@ -732,7 +732,7 @@ def compute_feedback_summary(feedback: pd.DataFrame, date_key: str) -> dict:
 
 @app.route("/")
 def index() -> str:
-    return redirect(url_for("student_dashboard"))
+    return render_template("landing.html")
 
 
 @app.route("/student")
