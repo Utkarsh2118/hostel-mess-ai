@@ -152,36 +152,17 @@ MENU_ITEM_RATIOS = {
 PIECE_ITEMS = {"roti", "chapati", "puri", "naan", "bhatura", "egg", "boiled egg", "banana", "ladoo", "gulab jamun", "biscuits", "idli"}
 
 MESS_TOPIC_KEYWORDS = {
-    # English core
-    "waste", "food", "prepare", "quantity", "kg", "students", "student",
-    "meal", "meals", "breakfast", "lunch", "dinner", "tea", "menu", "recipe",
-    "cook", "cooking", "attendance", "weekend", "exam", "predict", "manage",
-    "mess", "sabzi", "dal", "daal", "roti", "rice", "chawal", "paneer",
-    "aloo", "portion", "reduce", "save", "plan", "strategy", "hostel",
-    "canteen", "today", "tomorrow", "serving", "ration", "surplus", "deficit",
-    "how", "much", "many", "estimate", "calculate", "cost", "price", "rate",
-    "khana", "khaana", "anna", "grain", "vegetable", "curry", "sabji",
-    "kheer", "halwa", "biryani", "pulao", "poha", "upma", "idli", "dosa",
-    "prepare", "preparation", "suggest", "suggestion", "tip", "reduce",
-    "leftovers", "leftover", "surplus", "shortage", "enough", "sufficient",
-    "hungry", "hunger", "satiate", "nutrition", "calorie", "healthy",
-    "weekly", "daily", "monthly", "trend", "analysis", "report", "summary",
-    "morning", "evening", "night", "slot", "time", "schedule",
+    "waste", "food", "prepare", "quantity", "kg", "students", "meal",
+    "breakfast", "lunch", "dinner", "tea", "menu", "recipe", "cook",
+    "attendance", "weekend", "exam", "predict", "manage", "mess",
+    "sabzi", "dal", "roti", "rice", "chawal", "paneer", "aloo", "menu",
+    "portion", "reduce", "save", "plan", "strategy", "hostel", "canteen",
+    "today", "tomorrow", "serving", "ration", "surplus", "deficit",
 }
 
 def is_mess_related(message: str) -> bool:
     """Return True if the message is relevant to hostel mess management."""
-    msg = message.strip().lower()
-
-    # Very short inputs (1-3 chars) — allow them, let fallback handle gracefully
-    if len(msg) <= 3:
-        return True
-
-    # If message contains a number — likely asking about students/kg
-    if re.search(r"\d+", msg):
-        return True
-
-    words = set(re.findall(r"[a-z]+", msg))
+    words = set(re.findall(r"[a-z]+", message.lower()))
     return bool(words & MESS_TOPIC_KEYWORDS)
 
 
@@ -208,89 +189,53 @@ def breakdown_food_by_menu(menu_str: str, total_food_kg: float, students: int) -
     matched = []
     for item in items:
         ratio = None
+        # exact match first
         if item in MENU_ITEM_RATIOS:
             ratio = MENU_ITEM_RATIOS[item]
         else:
+            # partial match
             for key, val in MENU_ITEM_RATIOS.items():
                 if key in item or item in key:
                     ratio = val
                     break
         if ratio is None:
-            ratio = 0.15
+            ratio = 0.15  # generic default per student
         matched.append({"name": item, "ratio": ratio})
 
+    # Normalize ratios so they sum to 1.0 relative to total_food_kg
     total_ratio = sum(m["ratio"] for m in matched)
     result = []
     for m in matched:
         share = (m["ratio"] / total_ratio) * total_food_kg
         name = m["name"]
+        # Determine if this is a piece item
         is_piece = any(p in name for p in PIECE_ITEMS)
         if is_piece:
-            # Use realistic per-student piece counts instead of kg conversion
-            pieces_per_student = {
-                "roti": 3, "chapati": 3, "puri": 4, "naan": 2,
-                "bhatura": 2, "egg": 1, "boiled egg": 1, "banana": 1,
-                "ladoo": 2, "gulab jamun": 2, "idli": 3, "biscuits": 4,
+            # Convert kg to pieces: roti ~80g, egg ~50g, banana ~120g
+            gram_map = {
+                "roti": 80, "chapati": 80, "puri": 50, "naan": 100,
+                "bhatura": 100, "egg": 50, "boiled egg": 50, "banana": 120,
+                "ladoo": 50, "gulab jamun": 60, "idli": 40, "biscuits": 10,
             }
-            pps = 3  # default pieces per student
-            for k, p in pieces_per_student.items():
+            grams = 80  # default
+            for k, g in gram_map.items():
                 if k in name:
-                    pps = p
+                    grams = g
                     break
-            pieces = max(1, round(students * pps))
+            pieces = max(1, round((share * 1000) / grams))
             result.append({"name": name.title(), "kg": round(share, 2), "pieces": pieces})
         else:
             result.append({"name": name.title(), "kg": round(share, 2), "pieces": None})
     return result
 
 
-
-# Waste tendency per item — heavier/wetter items waste more
-WASTE_TENDENCY = {
-    "dal": 0.20, "daal": 0.20, "rajma": 0.20, "chole": 0.20,
-    "kadhi": 0.18, "sambar": 0.18, "soup": 0.15,
-    "rice": 0.22, "chawal": 0.22, "jeera rice": 0.20, "biryani": 0.18,
-    "pulao": 0.18, "khichdi": 0.18, "poha": 0.12, "upma": 0.12,
-    "roti": 0.06, "chapati": 0.06, "paratha": 0.08, "puri": 0.05,
-    "naan": 0.08, "bhatura": 0.07,
-    "sabzi": 0.15, "subzi": 0.15, "aloo": 0.14, "gobhi": 0.13,
-    "paneer": 0.10, "bhindi": 0.11, "baingan": 0.12, "palak": 0.13,
-    "mixed veg": 0.14,
-    "salad": 0.05, "raita": 0.06, "pickle": 0.01, "chutney": 0.02,
-    "papad": 0.02, "biscuits": 0.03,
-    "kheer": 0.14, "halwa": 0.12, "ladoo": 0.04, "gulab jamun": 0.06,
-    "milk": 0.10, "tea": 0.08, "chai": 0.08, "coffee": 0.07,
-    "idli": 0.08, "dosa": 0.06, "bread": 0.07, "egg": 0.04,
-    "banana": 0.05, "fruit": 0.06,
-}
-
-
 def breakdown_waste_by_menu(menu_str: str, total_waste_kg: float) -> list[dict]:
-    """Distribute waste proportionally across menu items using waste tendency ratios."""
+    """Distribute waste proportionally across menu items."""
     items = parse_menu_items(menu_str)
     if not items:
         return []
-
-    matched = []
-    for item in items:
-        tendency = None
-        if item in WASTE_TENDENCY:
-            tendency = WASTE_TENDENCY[item]
-        else:
-            for key, val in WASTE_TENDENCY.items():
-                if key in item or item in key:
-                    tendency = val
-                    break
-        if tendency is None:
-            tendency = 0.10  # default
-        matched.append({"name": item.title(), "tendency": tendency})
-
-    total_tendency = sum(m["tendency"] for m in matched)
-    result = []
-    for m in matched:
-        waste = round((m["tendency"] / total_tendency) * total_waste_kg, 2)
-        result.append({"name": m["name"], "waste_kg": waste})
-    return result
+    per_item = round(total_waste_kg / len(items), 2)
+    return [{"name": item.title(), "waste_kg": per_item} for item in items]
 
 
 def format_food_breakdown(items: list[dict], meal_name: str, students: int, is_weekend: int, is_exam_period: int) -> str:
@@ -777,7 +722,7 @@ def call_chatbot_llm(message: str, dataset: pd.DataFrame, trained: dict, menu_da
         menu_context = "\nCurrent menu:\n" + "\n".join(menu_lines)
 
     system_prompt = (
-        "You are a smart assistant ONLY for hostel mess management in India. "
+        "You are a smart assistant ONLY for hostel mess management. "
         "ONLY answer questions about: food waste, food quantities, meal planning, attendance, "
         "menu items, hostel canteen operations, and related topics. "
         "If the question is completely unrelated to hostel mess (e.g. geography, sports, politics, jokes), "
@@ -785,36 +730,39 @@ def call_chatbot_llm(message: str, dataset: pd.DataFrame, trained: dict, menu_da
         "When answering food quantity questions, always break down the total into individual menu items "
         "(e.g. Dal: 8 kg, Chawal: 12 kg, Sabzi: 7 kg, Roti: 150 pieces). "
         "When answering waste questions, also break down waste per item. "
-        "Use kilograms for quantities. Be concise and practical. "
-        f"Current context: students={latest_students}, waste_kg={latest_waste}, "
-        f"prepared_kg={latest_food}, model_r2={model_r2}.{menu_context}"
+        "Use kilograms for quantities. Be concise and practical."
+    )
+    context_prompt = (
+        f"Current known context: latest_students={latest_students}, "
+        f"latest_waste_kg={latest_waste}, latest_prepared_food_kg={latest_food}, model_r2={model_r2}."
+        f"{menu_context}"
     )
 
-    # Gemini API format
-    model_name = CHATBOT_MODEL if CHATBOT_MODEL else "gemini-1.5-flash"
-    model_candidates = [model_name] + [
-        m for m in ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"]
-        if m != model_name
+    payload = {
+        "systemInstruction": {
+            "parts": [{"text": f"{system_prompt}\n{context_prompt}"}],
+        },
+        "contents": [
+            {
+                "role": "user",
+                "parts": [{"text": message}],
+            }
+        ],
+        "generationConfig": {
+            "temperature": 0.25,
+            "maxOutputTokens": 220,
+        },
+    }
+
+    model_candidates = [CHATBOT_MODEL] + [
+        model for model in CHATBOT_MODEL_FALLBACKS if model != CHATBOT_MODEL
     ]
     last_error = "request_failed"
 
-    for model in model_candidates:
-        endpoint = (
-            f"https://generativelanguage.googleapis.com/v1beta/models/"
-            f"{model}:generateContent?key={CHATBOT_API_KEY}"
-        )
-        payload = {
-            "systemInstruction": {
-                "parts": [{"text": system_prompt}],
-            },
-            "contents": [
-                {"role": "user", "parts": [{"text": message}]}
-            ],
-            "generationConfig": {
-                "temperature": 0.25,
-                "maxOutputTokens": 350,
-            },
-        }
+    for model_name in model_candidates:
+        endpoint_base = CHATBOT_API_URL.format(model=model_name)
+        separator = "&" if "?" in endpoint_base else "?"
+        endpoint = f"{endpoint_base}{separator}key={CHATBOT_API_KEY}"
 
         req = url_request.Request(
             endpoint,
@@ -825,37 +773,44 @@ def call_chatbot_llm(message: str, dataset: pd.DataFrame, trained: dict, menu_da
 
         try:
             with url_request.urlopen(req, timeout=20) as response:
-                parsed = json.loads(response.read().decode("utf-8"))
+                raw = response.read().decode("utf-8")
+                parsed = json.loads(raw)
                 candidates = parsed.get("candidates") or []
                 if not candidates:
                     last_error = "empty_ai_response"
                     continue
-                parts = candidates[0].get("content", {}).get("parts", [])
+
+                first = candidates[0] if isinstance(candidates[0], dict) else {}
+                content = first.get("content") or {}
+                parts = content.get("parts") or []
+
                 text_chunks = [
-                    str(p.get("text", "")).strip()
-                    for p in parts
-                    if str(p.get("text", "")).strip()
+                    str(part.get("text", "")).strip()
+                    for part in parts
+                    if isinstance(part, dict) and str(part.get("text", "")).strip()
                 ]
                 content_text = "\n".join(text_chunks).strip()
                 if content_text:
                     return {"text": content_text, "error": None}
+
                 last_error = "empty_ai_response"
                 continue
-
         except url_error.HTTPError as exc:
             try:
                 body = exc.read().decode("utf-8", errors="ignore")
             except Exception:
                 body = ""
-            if "API key not valid" in body or exc.code == 400:
+
+            if body and "API key not valid" in body:
                 return {"text": None, "error": "invalid_api_key"}
-            if "quota" in body.lower() or exc.code == 429:
+            if body and "quota" in body.lower():
                 return {"text": None, "error": "quota_exceeded"}
+
             if exc.code == 404:
                 last_error = "model_not_found"
                 continue
-            return {"text": None, "error": f"http_{exc.code}"}
 
+            return {"text": None, "error": f"http_{exc.code}"}
         except (url_error.URLError, TimeoutError, ValueError, json.JSONDecodeError, KeyError):
             last_error = "request_failed"
             continue
