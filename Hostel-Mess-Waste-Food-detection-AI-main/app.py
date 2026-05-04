@@ -152,17 +152,36 @@ MENU_ITEM_RATIOS = {
 PIECE_ITEMS = {"roti", "chapati", "puri", "naan", "bhatura", "egg", "boiled egg", "banana", "ladoo", "gulab jamun", "biscuits", "idli"}
 
 MESS_TOPIC_KEYWORDS = {
-    "waste", "food", "prepare", "quantity", "kg", "students", "meal",
-    "breakfast", "lunch", "dinner", "tea", "menu", "recipe", "cook",
-    "attendance", "weekend", "exam", "predict", "manage", "mess",
-    "sabzi", "dal", "roti", "rice", "chawal", "paneer", "aloo", "menu",
-    "portion", "reduce", "save", "plan", "strategy", "hostel", "canteen",
-    "today", "tomorrow", "serving", "ration", "surplus", "deficit",
+    # English core
+    "waste", "food", "prepare", "quantity", "kg", "students", "student",
+    "meal", "meals", "breakfast", "lunch", "dinner", "tea", "menu", "recipe",
+    "cook", "cooking", "attendance", "weekend", "exam", "predict", "manage",
+    "mess", "sabzi", "dal", "daal", "roti", "rice", "chawal", "paneer",
+    "aloo", "portion", "reduce", "save", "plan", "strategy", "hostel",
+    "canteen", "today", "tomorrow", "serving", "ration", "surplus", "deficit",
+    "how", "much", "many", "estimate", "calculate", "cost", "price", "rate",
+    "khana", "khaana", "anna", "grain", "vegetable", "curry", "sabji",
+    "kheer", "halwa", "biryani", "pulao", "poha", "upma", "idli", "dosa",
+    "prepare", "preparation", "suggest", "suggestion", "tip", "reduce",
+    "leftovers", "leftover", "surplus", "shortage", "enough", "sufficient",
+    "hungry", "hunger", "satiate", "nutrition", "calorie", "healthy",
+    "weekly", "daily", "monthly", "trend", "analysis", "report", "summary",
+    "morning", "evening", "night", "slot", "time", "schedule",
 }
 
 def is_mess_related(message: str) -> bool:
     """Return True if the message is relevant to hostel mess management."""
-    words = set(re.findall(r"[a-z]+", message.lower()))
+    msg = message.strip().lower()
+
+    # Very short inputs (1-3 chars) — allow them, let fallback handle gracefully
+    if len(msg) <= 3:
+        return True
+
+    # If message contains a number — likely asking about students/kg
+    if re.search(r"\d+", msg):
+        return True
+
+    words = set(re.findall(r"[a-z]+", msg))
     return bool(words & MESS_TOPIC_KEYWORDS)
 
 
@@ -189,53 +208,89 @@ def breakdown_food_by_menu(menu_str: str, total_food_kg: float, students: int) -
     matched = []
     for item in items:
         ratio = None
-        # exact match first
         if item in MENU_ITEM_RATIOS:
             ratio = MENU_ITEM_RATIOS[item]
         else:
-            # partial match
             for key, val in MENU_ITEM_RATIOS.items():
                 if key in item or item in key:
                     ratio = val
                     break
         if ratio is None:
-            ratio = 0.15  # generic default per student
+            ratio = 0.15
         matched.append({"name": item, "ratio": ratio})
 
-    # Normalize ratios so they sum to 1.0 relative to total_food_kg
     total_ratio = sum(m["ratio"] for m in matched)
     result = []
     for m in matched:
         share = (m["ratio"] / total_ratio) * total_food_kg
         name = m["name"]
-        # Determine if this is a piece item
         is_piece = any(p in name for p in PIECE_ITEMS)
         if is_piece:
-            # Convert kg to pieces: roti ~80g, egg ~50g, banana ~120g
-            gram_map = {
-                "roti": 80, "chapati": 80, "puri": 50, "naan": 100,
-                "bhatura": 100, "egg": 50, "boiled egg": 50, "banana": 120,
-                "ladoo": 50, "gulab jamun": 60, "idli": 40, "biscuits": 10,
+            # Use realistic per-student piece counts instead of kg conversion
+            pieces_per_student = {
+                "roti": 3, "chapati": 3, "puri": 4, "naan": 2,
+                "bhatura": 2, "egg": 1, "boiled egg": 1, "banana": 1,
+                "ladoo": 2, "gulab jamun": 2, "idli": 3, "biscuits": 4,
             }
-            grams = 80  # default
-            for k, g in gram_map.items():
+            pps = 3  # default pieces per student
+            for k, p in pieces_per_student.items():
                 if k in name:
-                    grams = g
+                    pps = p
                     break
-            pieces = max(1, round((share * 1000) / grams))
+            pieces = max(1, round(students * pps))
             result.append({"name": name.title(), "kg": round(share, 2), "pieces": pieces})
         else:
             result.append({"name": name.title(), "kg": round(share, 2), "pieces": None})
     return result
 
 
+
+# Waste tendency per item — heavier/wetter items waste more
+WASTE_TENDENCY = {
+    "dal": 0.20, "daal": 0.20, "rajma": 0.20, "chole": 0.20,
+    "kadhi": 0.18, "sambar": 0.18, "soup": 0.15,
+    "rice": 0.22, "chawal": 0.22, "jeera rice": 0.20, "biryani": 0.18,
+    "pulao": 0.18, "khichdi": 0.18, "poha": 0.12, "upma": 0.12,
+    "roti": 0.06, "chapati": 0.06, "paratha": 0.08, "puri": 0.05,
+    "naan": 0.08, "bhatura": 0.07,
+    "sabzi": 0.15, "subzi": 0.15, "aloo": 0.14, "gobhi": 0.13,
+    "paneer": 0.10, "bhindi": 0.11, "baingan": 0.12, "palak": 0.13,
+    "mixed veg": 0.14,
+    "salad": 0.05, "raita": 0.06, "pickle": 0.01, "chutney": 0.02,
+    "papad": 0.02, "biscuits": 0.03,
+    "kheer": 0.14, "halwa": 0.12, "ladoo": 0.04, "gulab jamun": 0.06,
+    "milk": 0.10, "tea": 0.08, "chai": 0.08, "coffee": 0.07,
+    "idli": 0.08, "dosa": 0.06, "bread": 0.07, "egg": 0.04,
+    "banana": 0.05, "fruit": 0.06,
+}
+
+
 def breakdown_waste_by_menu(menu_str: str, total_waste_kg: float) -> list[dict]:
-    """Distribute waste proportionally across menu items."""
+    """Distribute waste proportionally across menu items using waste tendency ratios."""
     items = parse_menu_items(menu_str)
     if not items:
         return []
-    per_item = round(total_waste_kg / len(items), 2)
-    return [{"name": item.title(), "waste_kg": per_item} for item in items]
+
+    matched = []
+    for item in items:
+        tendency = None
+        if item in WASTE_TENDENCY:
+            tendency = WASTE_TENDENCY[item]
+        else:
+            for key, val in WASTE_TENDENCY.items():
+                if key in item or item in key:
+                    tendency = val
+                    break
+        if tendency is None:
+            tendency = 0.10  # default
+        matched.append({"name": item.title(), "tendency": tendency})
+
+    total_tendency = sum(m["tendency"] for m in matched)
+    result = []
+    for m in matched:
+        waste = round((m["tendency"] / total_tendency) * total_waste_kg, 2)
+        result.append({"name": m["name"], "waste_kg": waste})
+    return result
 
 
 def format_food_breakdown(items: list[dict], meal_name: str, students: int, is_weekend: int, is_exam_period: int) -> str:
@@ -735,60 +790,77 @@ def call_chatbot_llm(message: str, dataset: pd.DataFrame, trained: dict, menu_da
         f"prepared_kg={latest_food}, model_r2={model_r2}.{menu_context}"
     )
 
-    # Groq uses OpenAI-compatible API format
-    GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions"
-    GROQ_MODEL = CHATBOT_MODEL if CHATBOT_MODEL else "llama-3.1-8b-instant"
+    # Gemini API format
+    model_name = CHATBOT_MODEL if CHATBOT_MODEL else "gemini-1.5-flash"
+    model_candidates = [model_name] + [
+        m for m in ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"]
+        if m != model_name
+    ]
+    last_error = "request_failed"
 
-    payload = {
-        "model": GROQ_MODEL,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user",   "content": message},
-        ],
-        "temperature": 0.25,
-        "max_tokens": 350,
-    }
+    for model in model_candidates:
+        endpoint = (
+            f"https://generativelanguage.googleapis.com/v1beta/models/"
+            f"{model}:generateContent?key={CHATBOT_API_KEY}"
+        )
+        payload = {
+            "systemInstruction": {
+                "parts": [{"text": system_prompt}],
+            },
+            "contents": [
+                {"role": "user", "parts": [{"text": message}]}
+            ],
+            "generationConfig": {
+                "temperature": 0.25,
+                "maxOutputTokens": 350,
+            },
+        }
 
-    req = url_request.Request(
-        GROQ_ENDPOINT,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {CHATBOT_API_KEY}",
-        },
-        method="POST",
-    )
+        req = url_request.Request(
+            endpoint,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
 
-    try:
-        with url_request.urlopen(req, timeout=20) as response:
-            parsed = json.loads(response.read().decode("utf-8"))
-            content_text = (
-                parsed.get("choices", [{}])[0]
-                .get("message", {})
-                .get("content", "")
-                .strip()
-            )
-            if content_text:
-                return {"text": content_text, "error": None}
-            return {"text": None, "error": "empty_ai_response"}
-
-    except url_error.HTTPError as exc:
         try:
-            body = exc.read().decode("utf-8", errors="ignore")
-        except Exception:
-            body = ""
+            with url_request.urlopen(req, timeout=20) as response:
+                parsed = json.loads(response.read().decode("utf-8"))
+                candidates = parsed.get("candidates") or []
+                if not candidates:
+                    last_error = "empty_ai_response"
+                    continue
+                parts = candidates[0].get("content", {}).get("parts", [])
+                text_chunks = [
+                    str(p.get("text", "")).strip()
+                    for p in parts
+                    if str(p.get("text", "")).strip()
+                ]
+                content_text = "\n".join(text_chunks).strip()
+                if content_text:
+                    return {"text": content_text, "error": None}
+                last_error = "empty_ai_response"
+                continue
 
-        if exc.code == 401 or "invalid_api_key" in body.lower() or "authentication" in body.lower():
-            return {"text": None, "error": "invalid_api_key"}
-        if exc.code == 429 or "quota" in body.lower() or "rate_limit" in body.lower():
-            return {"text": None, "error": "quota_exceeded"}
-        if exc.code == 404:
-            return {"text": None, "error": "model_not_found"}
+        except url_error.HTTPError as exc:
+            try:
+                body = exc.read().decode("utf-8", errors="ignore")
+            except Exception:
+                body = ""
+            if "API key not valid" in body or exc.code == 400:
+                return {"text": None, "error": "invalid_api_key"}
+            if "quota" in body.lower() or exc.code == 429:
+                return {"text": None, "error": "quota_exceeded"}
+            if exc.code == 404:
+                last_error = "model_not_found"
+                continue
+            return {"text": None, "error": f"http_{exc.code}"}
 
-        return {"text": None, "error": f"http_{exc.code}"}
+        except (url_error.URLError, TimeoutError, ValueError, json.JSONDecodeError, KeyError):
+            last_error = "request_failed"
+            continue
 
-    except (url_error.URLError, TimeoutError, ValueError, json.JSONDecodeError, KeyError):
-        return {"text": None, "error": "request_failed"}
+    return {"text": None, "error": last_error}
 
 
 def chatbot_fallback_reason(error_code: str | None) -> str | None:
