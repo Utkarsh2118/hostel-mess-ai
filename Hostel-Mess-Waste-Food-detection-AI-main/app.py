@@ -79,6 +79,15 @@ MEAL_FORECAST_MULTIPLIERS = {
     "Dinner": 0.92,
 }
 
+# Items measured in litres (not kg)
+LIQUID_ITEMS = {"tea", "chai", "masala tea", "milk", "coffee", "soup", "kadhi", "sambar", "lassi", "juice"}
+# ml per student for liquid items
+LIQUID_ML_PER_STUDENT = {
+    "tea": 150, "chai": 150, "masala tea": 150,
+    "milk": 200, "coffee": 150, "soup": 200,
+    "kadhi": 150, "sambar": 150, "lassi": 200, "juice": 200,
+}
+
 # Per-student food quantities (kg) for common Indian hostel menu items.
 # Used to break down total food_kg into per-item portions.
 MENU_ITEM_RATIOS = {
@@ -152,17 +161,36 @@ MENU_ITEM_RATIOS = {
 PIECE_ITEMS = {"roti", "chapati", "puri", "naan", "bhatura", "egg", "boiled egg", "banana", "ladoo", "gulab jamun", "biscuits", "idli"}
 
 MESS_TOPIC_KEYWORDS = {
-    "waste", "food", "prepare", "quantity", "kg", "students", "meal",
-    "breakfast", "lunch", "dinner", "tea", "menu", "recipe", "cook",
-    "attendance", "weekend", "exam", "predict", "manage", "mess",
-    "sabzi", "dal", "roti", "rice", "chawal", "paneer", "aloo", "menu",
-    "portion", "reduce", "save", "plan", "strategy", "hostel", "canteen",
-    "today", "tomorrow", "serving", "ration", "surplus", "deficit",
+    # English core
+    "waste", "food", "prepare", "quantity", "kg", "students", "student",
+    "meal", "meals", "breakfast", "lunch", "dinner", "tea", "menu", "recipe",
+    "cook", "cooking", "attendance", "weekend", "exam", "predict", "manage",
+    "mess", "sabzi", "dal", "daal", "roti", "rice", "chawal", "paneer",
+    "aloo", "portion", "reduce", "save", "plan", "strategy", "hostel",
+    "canteen", "today", "tomorrow", "serving", "ration", "surplus", "deficit",
+    "how", "much", "many", "estimate", "calculate", "cost", "price", "rate",
+    "khana", "khaana", "anna", "grain", "vegetable", "curry", "sabji",
+    "kheer", "halwa", "biryani", "pulao", "poha", "upma", "idli", "dosa",
+    "prepare", "preparation", "suggest", "suggestion", "tip", "reduce",
+    "leftovers", "leftover", "surplus", "shortage", "enough", "sufficient",
+    "hungry", "hunger", "satiate", "nutrition", "calorie", "healthy",
+    "weekly", "daily", "monthly", "trend", "analysis", "report", "summary",
+    "morning", "evening", "night", "slot", "time", "schedule",
 }
 
 def is_mess_related(message: str) -> bool:
     """Return True if the message is relevant to hostel mess management."""
-    words = set(re.findall(r"[a-z]+", message.lower()))
+    msg = message.strip().lower()
+
+    # Very short inputs (1-3 chars) — allow them, let fallback handle gracefully
+    if len(msg) <= 3:
+        return True
+
+    # If message contains a number — likely asking about students/kg
+    if re.search(r"\d+", msg):
+        return True
+
+    words = set(re.findall(r"[a-z]+", msg))
     return bool(words & MESS_TOPIC_KEYWORDS)
 
 
@@ -174,6 +202,116 @@ def parse_menu_items(menu_str: str) -> list[str]:
         if item:
             items.append(item)
     return items
+
+
+# ── Cost estimation prices (₹ per kg, except piece items ₹ per piece) ──────
+ITEM_PRICES = {
+    "dal": 80, "daal": 80, "rajma": 90, "chole": 85, "kadhi": 60,
+    "sambar": 55, "soup": 50,
+    "rice": 40, "chawal": 40, "jeera rice": 50, "biryani": 120,
+    "pulao": 80, "khichdi": 45, "poha": 35, "upma": 35,
+    "roti": 5, "chapati": 5, "paratha": 8, "puri": 4, "naan": 10, "bhatura": 8,
+    "sabzi": 60, "subzi": 60, "aloo": 50, "gobhi": 55, "paneer": 200,
+    "bhindi": 70, "baingan": 45, "palak": 50, "mixed veg": 60,
+    "salad": 30, "raita": 40, "pickle": 20, "chutney": 25, "papad": 15,
+    "kheer": 70, "halwa": 60, "ladoo": 10, "gulab jamun": 8,
+    "milk": 60, "tea": 20, "chai": 20, "coffee": 30,
+    "idli": 5, "dosa": 8, "bread": 40, "egg": 7, "banana": 5, "fruit": 80,
+}
+PIECE_PRICE_ITEMS = {"roti", "chapati", "puri", "naan", "bhatura", "egg", "banana",
+                     "ladoo", "gulab jamun", "idli", "papad"}
+
+
+def estimate_cost(food_items: list[dict]) -> dict:
+    total = 0.0
+    item_costs = []
+    for item in food_items:
+        name_lower = item["name"].lower()
+        price = None
+        if name_lower in ITEM_PRICES:
+            price = ITEM_PRICES[name_lower]
+        else:
+            for key, val in ITEM_PRICES.items():
+                if key in name_lower or name_lower in key:
+                    price = val
+                    break
+        if price is None:
+            price = 60
+        is_piece = any(p in name_lower for p in PIECE_PRICE_ITEMS)
+        if is_piece and item.get("pieces"):
+            cost = round(item["pieces"] * price, 2)
+            item_costs.append({"name": item["name"], "cost": cost,
+                                "qty": f"{item['pieces']} pieces × ₹{price}/pc"})
+        else:
+            cost = round(item["kg"] * price, 2)
+            item_costs.append({"name": item["name"], "cost": cost,
+                                "qty": f"{item['kg']} kg × ₹{price}/kg"})
+        total += cost
+    return {"items": item_costs, "total": round(total, 2)}
+
+
+def format_cost_breakdown(cost_data: dict, meal_slot: str, students: int) -> str:
+    lines = [f"💰 Estimated cost — {meal_slot} for {students} students:\n"]
+    for item in cost_data["items"]:
+        lines.append(f"  • {item['name']}: ₹{item['cost']} ({item['qty']})")
+    lines.append(f"\n  Total: ₹{cost_data['total']}")
+    per_student = round(cost_data["total"] / students, 2) if students else 0
+    lines.append(f"  Per student: ₹{per_student}")
+    return "\n".join(lines)
+
+
+def get_waste_history(df: pd.DataFrame, days: int = 7) -> str:
+    if df.empty:
+        return "No historical data available."
+    recent = df.tail(days)
+    avg_waste = round(float(recent["waste_kg"].mean()), 2)
+    max_waste = round(float(recent["waste_kg"].max()), 2)
+    min_waste = round(float(recent["waste_kg"].min()), 2)
+    avg_students = round(float(recent["students_present"].mean()), 0)
+    lines = [
+        f"📊 Last {len(recent)} records summary:\n",
+        f"  • Avg waste: {avg_waste} kg/day",
+        f"  • Max waste: {max_waste} kg",
+        f"  • Min waste: {min_waste} kg",
+        f"  • Avg students: {int(avg_students)}",
+        f"  • Avg waste/student: {round(avg_waste / avg_students, 3) if avg_students else 'N/A'} kg",
+    ]
+    return "\n".join(lines)
+
+
+def get_trend_analysis(df: pd.DataFrame) -> str:
+    if df.empty or len(df) < 5:
+        return "Not enough data for trend analysis."
+    half = len(df) // 2
+    first_avg = round(float(df.iloc[:half]["waste_kg"].mean()), 2)
+    second_avg = round(float(df.iloc[half:]["waste_kg"].mean()), 2)
+    change = round(second_avg - first_avg, 2)
+    pct = round((change / first_avg * 100), 1) if first_avg else 0
+    trend = "📈 increasing" if change > 0 else "📉 decreasing"
+    lines = [
+        f"📊 Waste Trend Analysis:\n",
+        f"  • Earlier period avg: {first_avg} kg/day",
+        f"  • Recent period avg: {second_avg} kg/day",
+        f"  • Trend: {trend} ({'+' if change > 0 else ''}{change} kg, {'+' if pct > 0 else ''}{pct}%)",
+        "  💡 Tip: Reduce preparation by 5-10%" if change > 0 else "  ✅ Waste is reducing over time!",
+    ]
+    return "\n".join(lines)
+
+
+def build_rich_context(df: pd.DataFrame, trained: dict, menu_data: dict | None) -> str:
+    ctx_parts = []
+    if not df.empty:
+        ctx_parts.append(
+            f"Latest record: {int(df['students_present'].iloc[-1])} students, "
+            f"waste={df['waste_kg'].iloc[-1]}kg, prepared={df['prepared_kg'].iloc[-1]}kg."
+        )
+        ctx_parts.append(get_waste_history(df, days=min(7, len(df))))
+        ctx_parts.append(get_trend_analysis(df))
+    if menu_data and menu_data.get("menus"):
+        menu_lines = [f"  {m}: {v}" for m, v in menu_data["menus"].items()]
+        ctx_parts.append("Today's menu:\n" + "\n".join(menu_lines))
+    ctx_parts.append(f"Model R²: {round(float(trained.get('r2', 0)), 3)}")
+    return "\n\n".join(ctx_parts)
 
 
 def breakdown_food_by_menu(menu_str: str, total_food_kg: float, students: int) -> list[dict]:
@@ -189,70 +327,120 @@ def breakdown_food_by_menu(menu_str: str, total_food_kg: float, students: int) -
     matched = []
     for item in items:
         ratio = None
-        # exact match first
         if item in MENU_ITEM_RATIOS:
             ratio = MENU_ITEM_RATIOS[item]
         else:
-            # partial match
             for key, val in MENU_ITEM_RATIOS.items():
                 if key in item or item in key:
                     ratio = val
                     break
         if ratio is None:
-            ratio = 0.15  # generic default per student
+            ratio = 0.15
         matched.append({"name": item, "ratio": ratio})
 
-    # Normalize ratios so they sum to 1.0 relative to total_food_kg
     total_ratio = sum(m["ratio"] for m in matched)
     result = []
     for m in matched:
         share = (m["ratio"] / total_ratio) * total_food_kg
         name = m["name"]
-        # Determine if this is a piece item
         is_piece = any(p in name for p in PIECE_ITEMS)
-        if is_piece:
-            # Convert kg to pieces: roti ~80g, egg ~50g, banana ~120g
-            gram_map = {
-                "roti": 80, "chapati": 80, "puri": 50, "naan": 100,
-                "bhatura": 100, "egg": 50, "boiled egg": 50, "banana": 120,
-                "ladoo": 50, "gulab jamun": 60, "idli": 40, "biscuits": 10,
-            }
-            grams = 80  # default
-            for k, g in gram_map.items():
-                if k in name:
-                    grams = g
+        is_liquid = any(lq in name for lq in LIQUID_ITEMS)
+        if is_liquid:
+            # Calculate in litres
+            ml_per_student = 150
+            for lk, ml in LIQUID_ML_PER_STUDENT.items():
+                if lk in name:
+                    ml_per_student = ml
                     break
-            pieces = max(1, round((share * 1000) / grams))
-            result.append({"name": name.title(), "kg": round(share, 2), "pieces": pieces})
+            total_ml = students * ml_per_student
+            total_litres = round(total_ml / 1000, 2)
+            result.append({"name": name.title(), "kg": round(share, 2),
+                           "pieces": None, "litres": total_litres})
+        elif is_piece:
+            pieces_per_student = {
+                "roti": 3, "chapati": 3, "puri": 4, "naan": 2,
+                "bhatura": 2, "egg": 1, "boiled egg": 1, "banana": 1,
+                "ladoo": 2, "gulab jamun": 2, "idli": 3, "biscuits": 4,
+                "sandwich": 1, "veg sandwich": 1, "bread": 2, "toast": 2,
+                "samosa": 2, "kachori": 2, "pakoda": 4, "vada": 2,
+            }
+            pps = 2  # default
+            for k, p in pieces_per_student.items():
+                if k in name:
+                    pps = p
+                    break
+            pieces = max(1, round(students * pps))
+            result.append({"name": name.title(), "kg": round(share, 2),
+                           "pieces": pieces, "litres": None})
         else:
-            result.append({"name": name.title(), "kg": round(share, 2), "pieces": None})
+            result.append({"name": name.title(), "kg": round(share, 2),
+                           "pieces": None, "litres": None})
     return result
 
 
+
+# Waste tendency per item — heavier/wetter items waste more
+WASTE_TENDENCY = {
+    "dal": 0.20, "daal": 0.20, "rajma": 0.20, "chole": 0.20,
+    "kadhi": 0.18, "sambar": 0.18, "soup": 0.15,
+    "rice": 0.22, "chawal": 0.22, "jeera rice": 0.20, "biryani": 0.18,
+    "pulao": 0.18, "khichdi": 0.18, "poha": 0.12, "upma": 0.12,
+    "roti": 0.06, "chapati": 0.06, "paratha": 0.08, "puri": 0.05,
+    "naan": 0.08, "bhatura": 0.07,
+    "sabzi": 0.15, "subzi": 0.15, "aloo": 0.14, "gobhi": 0.13,
+    "paneer": 0.10, "bhindi": 0.11, "baingan": 0.12, "palak": 0.13,
+    "mixed veg": 0.14,
+    "salad": 0.05, "raita": 0.06, "pickle": 0.01, "chutney": 0.02,
+    "papad": 0.02, "biscuits": 0.03,
+    "kheer": 0.14, "halwa": 0.12, "ladoo": 0.04, "gulab jamun": 0.06,
+    "milk": 0.10, "tea": 0.08, "chai": 0.08, "coffee": 0.07,
+    "idli": 0.08, "dosa": 0.06, "bread": 0.07, "egg": 0.04,
+    "banana": 0.05, "fruit": 0.06,
+}
+
+
 def breakdown_waste_by_menu(menu_str: str, total_waste_kg: float) -> list[dict]:
-    """Distribute waste proportionally across menu items."""
+    """Distribute waste proportionally across menu items using waste tendency ratios."""
     items = parse_menu_items(menu_str)
     if not items:
         return []
-    per_item = round(total_waste_kg / len(items), 2)
-    return [{"name": item.title(), "waste_kg": per_item} for item in items]
+
+    matched = []
+    for item in items:
+        tendency = None
+        if item in WASTE_TENDENCY:
+            tendency = WASTE_TENDENCY[item]
+        else:
+            for key, val in WASTE_TENDENCY.items():
+                if key in item or item in key:
+                    tendency = val
+                    break
+        if tendency is None:
+            tendency = 0.10  # default
+        matched.append({"name": item.title(), "tendency": tendency})
+
+    total_tendency = sum(m["tendency"] for m in matched)
+    result = []
+    for m in matched:
+        waste = round((m["tendency"] / total_tendency) * total_waste_kg, 2)
+        result.append({"name": m["name"], "waste_kg": waste})
+    return result
 
 
 def format_food_breakdown(items: list[dict], meal_name: str, students: int, is_weekend: int, is_exam_period: int) -> str:
-    """Format a human-readable food preparation breakdown."""
     context = ""
     if is_weekend:
         context += " (weekend)"
     if is_exam_period:
         context += " (exam period)"
-
     lines = [f"📋 Food preparation for {students} students — {meal_name}{context}:\n"]
     for item in items:
-        if item.get("pieces"):
+        if item.get("litres"):
+            lines.append(f"  • {item['name']}: {item['litres']} litres")
+        elif item.get("pieces"):
             lines.append(f"  • {item['name']}: {item['pieces']} pieces ({item['kg']} kg)")
         else:
             lines.append(f"  • {item['name']}: {item['kg']} kg")
-
     total = sum(i["kg"] for i in items)
     lines.append(f"\n  Total: {round(total, 2)} kg")
     return "\n".join(lines)
@@ -705,94 +893,75 @@ def estimate_day_row_from_attendance(students_present: int, dataset: pd.DataFram
     }
 
 
-def call_chatbot_llm(message: str, dataset: pd.DataFrame, trained: dict, menu_data: dict | None = None) -> dict[str, str | None]:
+def call_chatbot_llm(message: str, dataset: pd.DataFrame, trained: dict,
+                     menu_data: dict | None = None,
+                     history: list | None = None) -> dict[str, str | None]:
     if not CHATBOT_API_KEY:
         return {"text": None, "error": "missing_api_key"}
 
-    latest_students = int(dataset["students_present"].iloc[-1]) if not dataset.empty else 0
-    latest_waste = float(dataset["waste_kg"].iloc[-1]) if not dataset.empty else 0.0
-    latest_food = float(dataset["prepared_kg"].iloc[-1]) if not dataset.empty else 0.0
-    model_r2 = float(trained.get("r2", 0.0))
-
-    menu_context = ""
-    if menu_data and menu_data.get("menus"):
-        menu_lines = []
-        for meal, items in menu_data["menus"].items():
-            menu_lines.append(f"  {meal}: {items}")
-        menu_context = "\nCurrent menu:\n" + "\n".join(menu_lines)
+    rich_ctx = build_rich_context(dataset, trained, menu_data)
 
     system_prompt = (
-        "You are a smart assistant ONLY for hostel mess management. "
+        "You are a smart assistant ONLY for hostel mess management in India. "
         "ONLY answer questions about: food waste, food quantities, meal planning, attendance, "
-        "menu items, hostel canteen operations, and related topics. "
-        "If the question is completely unrelated to hostel mess (e.g. geography, sports, politics, jokes), "
+        "menu items, cost estimation, trends, and hostel canteen operations. "
+        "If the question is completely unrelated (e.g. geography, sports, politics, jokes), "
         "politely decline and redirect to mess-related questions. "
-        "When answering food quantity questions, always break down the total into individual menu items "
-        "(e.g. Dal: 8 kg, Chawal: 12 kg, Sabzi: 7 kg, Roti: 150 pieces). "
-        "When answering waste questions, also break down waste per item. "
-        "Use kilograms for quantities. Be concise and practical."
-    )
-    context_prompt = (
-        f"Current known context: latest_students={latest_students}, "
-        f"latest_waste_kg={latest_waste}, latest_prepared_food_kg={latest_food}, model_r2={model_r2}."
-        f"{menu_context}"
+        "When answering food quantity questions, break down into individual menu items "
+        "(e.g. Dal: 8 kg, Chawal: 12 kg, Roti: 150 pieces). "
+        "When answering cost questions, show per-item cost and total. "
+        "When answering waste questions, break down waste per item. "
+        "Use ₹ for costs and kg for quantities. Be concise and practical.\n\n"
+        f"Current data:\n{rich_ctx}"
     )
 
-    payload = {
-        "systemInstruction": {
-            "parts": [{"text": f"{system_prompt}\n{context_prompt}"}],
-        },
-        "contents": [
-            {
-                "role": "user",
-                "parts": [{"text": message}],
-            }
-        ],
-        "generationConfig": {
-            "temperature": 0.25,
-            "maxOutputTokens": 220,
-        },
-    }
+    # Build conversation contents with history
+    contents = []
+    for turn in (history or []):
+        role = turn.get("role", "user")
+        text = turn.get("content", "")
+        if role in ("user", "model") and text:
+            contents.append({"role": role, "parts": [{"text": text}]})
+    contents.append({"role": "user", "parts": [{"text": message}]})
 
-    model_candidates = [CHATBOT_MODEL] + [
-        model for model in CHATBOT_MODEL_FALLBACKS if model != CHATBOT_MODEL
+    model_name = CHATBOT_MODEL if CHATBOT_MODEL else "gemini-1.5-flash"
+    model_candidates = [model_name] + [
+        m for m in ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"]
+        if m != model_name
     ]
     last_error = "request_failed"
 
-    for model_name in model_candidates:
-        endpoint_base = CHATBOT_API_URL.format(model=model_name)
-        separator = "&" if "?" in endpoint_base else "?"
-        endpoint = f"{endpoint_base}{separator}key={CHATBOT_API_KEY}"
-
+    for model in model_candidates:
+        endpoint = (
+            f"https://generativelanguage.googleapis.com/v1beta/models/"
+            f"{model}:generateContent?key={CHATBOT_API_KEY}"
+        )
+        payload = {
+            "systemInstruction": {"parts": [{"text": system_prompt}]},
+            "contents": contents,
+            "generationConfig": {"temperature": 0.25, "maxOutputTokens": 400},
+        }
         req = url_request.Request(
             endpoint,
             data=json.dumps(payload).encode("utf-8"),
             headers={"Content-Type": "application/json"},
             method="POST",
         )
-
         try:
             with url_request.urlopen(req, timeout=20) as response:
-                raw = response.read().decode("utf-8")
-                parsed = json.loads(raw)
+                parsed = json.loads(response.read().decode("utf-8"))
                 candidates = parsed.get("candidates") or []
                 if not candidates:
                     last_error = "empty_ai_response"
                     continue
-
-                first = candidates[0] if isinstance(candidates[0], dict) else {}
-                content = first.get("content") or {}
-                parts = content.get("parts") or []
-
+                parts = candidates[0].get("content", {}).get("parts", [])
                 text_chunks = [
-                    str(part.get("text", "")).strip()
-                    for part in parts
-                    if isinstance(part, dict) and str(part.get("text", "")).strip()
+                    str(p.get("text", "")).strip()
+                    for p in parts if str(p.get("text", "")).strip()
                 ]
                 content_text = "\n".join(text_chunks).strip()
                 if content_text:
                     return {"text": content_text, "error": None}
-
                 last_error = "empty_ai_response"
                 continue
         except url_error.HTTPError as exc:
@@ -800,16 +969,13 @@ def call_chatbot_llm(message: str, dataset: pd.DataFrame, trained: dict, menu_da
                 body = exc.read().decode("utf-8", errors="ignore")
             except Exception:
                 body = ""
-
-            if body and "API key not valid" in body:
+            if "API key not valid" in body or exc.code == 400:
                 return {"text": None, "error": "invalid_api_key"}
-            if body and "quota" in body.lower():
+            if "quota" in body.lower() or exc.code == 429:
                 return {"text": None, "error": "quota_exceeded"}
-
             if exc.code == 404:
                 last_error = "model_not_found"
                 continue
-
             return {"text": None, "error": f"http_{exc.code}"}
         except (url_error.URLError, TimeoutError, ValueError, json.JSONDecodeError, KeyError):
             last_error = "request_failed"
@@ -1571,53 +1737,42 @@ def api_chatbot():
     data = request.get_json(silent=True) or {}
     message = str(data.get("message", "")).strip()
     message_lower = message.lower()
+    # Conversation history from frontend [{role, content}]
+    history = data.get("history", [])
 
     if not message:
-        return jsonify(
-            {
-                "reply": "Please type a question. Example: 'How much food for 120 students at lunch?'",
-                "predicted_waste": 0,
-                "suggested_food": 0,
-                "r2": 0,
-            }
-        )
+        return jsonify({
+            "reply": "Please type a question. Example: 'How much food for 120 students at lunch?'",
+            "predicted_waste": 0, "suggested_food": 0, "r2": 0,
+        })
 
-    # ── Topic guard: reject completely off-topic messages ──────────────────
+    # Topic guard
     greetings = {"hi", "hello", "hey", "hii", "yo", "namaste", "good morning", "good evening"}
     if message_lower not in greetings and not is_mess_related(message_lower):
-        return jsonify(
-            {
-                "reply": (
-                    "I'm only able to answer questions about hostel mess management — "
-                    "such as food quantities, waste estimates, attendance, and meal planning. "
-                    "Please ask something related to the mess! 🍽️"
-                ),
-                "predicted_waste": 0,
-                "suggested_food": 0,
-                "r2": 0,
-                "source": "rule",
-                "fallback_reason": None,
-            }
-        )
+        return jsonify({
+            "reply": (
+                "I'm only able to answer questions about hostel mess management — "
+                "food quantities, waste, cost, trends, attendance, and meal planning. 🍽️"
+            ),
+            "predicted_waste": 0, "suggested_food": 0, "r2": 0,
+            "source": "rule", "fallback_reason": None,
+        })
 
     df = load_dataset(DATASET_PATH)
     trained = train_waste_model(df)
-    menu_data = load_menu()
+    menu_data = load_menu()  # auto-fetch today's menu
 
     match = re.search(r"(\d+)", message_lower)
     students_present = (
-        int(match.group(1))
-        if match
-        else int(df["students_present"].iloc[-1])
-        if not df.empty
+        int(match.group(1)) if match
+        else int(df["students_present"].iloc[-1]) if not df.empty
         else 100
     )
 
     is_weekend = 1 if re.search(r"weekend|saturday|sunday", message_lower) else 0
     is_exam_period = 1 if re.search(r"exam|test|mid|final", message_lower) else 0
 
-    # Detect which meal slot the question is about
-    meal_slot = "Lunch"  # default
+    meal_slot = "Lunch"
     for mw in MEAL_WINDOWS:
         if mw["meal"].lower() in message_lower:
             meal_slot = mw["meal"]
@@ -1625,13 +1780,49 @@ def api_chatbot():
 
     predicted_waste = predict_waste(trained["model"], students_present, is_weekend, is_exam_period)
     food_kg = suggested_food_quantity(df, students_present)
-
-    # Apply meal multiplier if a specific meal was mentioned
     multiplier = MEAL_FORECAST_MULTIPLIERS.get(meal_slot, 1.0)
     meal_waste = round(predicted_waste * multiplier, 2)
     meal_food = round(food_kg * multiplier, 2)
 
-    ai_result = call_chatbot_llm(message, df, trained, menu_data)
+    # ── Rule-based special handlers ─────────────────────────────────────────
+
+    # Trend / history questions — answer directly from data
+    if re.search(r"trend|analys|compar|last.*(week|month)|history|pattern", message_lower):
+        trend_text = get_trend_analysis(df)
+        history_text = get_waste_history(df, days=min(10, len(df)))
+        rule_text = f"{trend_text}\n\n{history_text}"
+        return jsonify({
+            "reply": rule_text, "predicted_waste": meal_waste,
+            "suggested_food": meal_food, "r2": trained["r2"],
+            "source": "rule", "meal_slot": meal_slot, "fallback_reason": None,
+        })
+
+    # Cost estimation questions
+    if re.search(r"cost|price|rupee|₹|rs|kitna paisa|kitne paise|budget|spend|expenditure", message_lower):
+        menu_str = ""
+        if menu_data and menu_data.get("menus"):
+            menu_str = menu_data["menus"].get(meal_slot, "")
+        if menu_str:
+            food_items = breakdown_food_by_menu(menu_str, meal_food, students_present)
+            cost_data = estimate_cost(food_items)
+            rule_text = format_cost_breakdown(cost_data, meal_slot, students_present)
+        else:
+            per_student_cost = round(meal_food / students_present * 60, 2) if students_present else 0
+            rule_text = (
+                f"💰 Estimated cost for {students_present} students — {meal_slot}:\n\n"
+                f"  Total food: {meal_food} kg × avg ₹60/kg\n"
+                f"  Approx total: ₹{round(meal_food * 60, 2)}\n"
+                f"  Per student: ₹{per_student_cost}\n\n"
+                f"  (Add today's menu for item-wise cost breakdown!)"
+            )
+        return jsonify({
+            "reply": rule_text, "predicted_waste": meal_waste,
+            "suggested_food": meal_food, "r2": trained["r2"],
+            "source": "rule", "meal_slot": meal_slot, "fallback_reason": None,
+        })
+
+    # Try AI with conversation history
+    ai_result = call_chatbot_llm(message, df, trained, menu_data, history)
     ai_text = ai_result.get("text")
     ai_error = ai_result.get("error")
     source = "ai" if ai_text else "rule"
@@ -1644,17 +1835,15 @@ def api_chatbot():
             is_weekend, is_exam_period, menu_data, meal_slot,
         )
 
-    return jsonify(
-        {
-            "reply": text,
-            "predicted_waste": meal_waste,
-            "suggested_food": meal_food,
-            "r2": trained["r2"],
-            "source": source,
-            "meal_slot": meal_slot,
-            "fallback_reason": chatbot_fallback_reason(ai_error) if ai_error and source == "rule" else None,
-        }
-    )
+    return jsonify({
+        "reply": text,
+        "predicted_waste": meal_waste,
+        "suggested_food": meal_food,
+        "r2": trained["r2"],
+        "source": source,
+        "meal_slot": meal_slot,
+        "fallback_reason": chatbot_fallback_reason(ai_error) if ai_error and source == "rule" else None,
+    })
 
 
 @app.route("/api/student/menu-feedback", methods=["POST"])
