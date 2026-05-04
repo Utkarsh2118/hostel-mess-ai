@@ -151,6 +151,42 @@ td:last-child{border-radius:0 .75rem .75rem 0}
 .conf-mid{background:#f59e0b}
 .conf-low{background:#e11d48}
 
+/* -------- prediction page -------- */
+.pred-presets{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:.75rem}
+.preset-btn{border-radius:9999px;border:1px solid var(--sl-300);padding:.35rem .9rem;font-size:.8rem;font-weight:700;color:var(--sl-700);background:#fff;cursor:pointer;font-family:var(--font);transition:all .15s}
+.preset-btn:hover{border-color:#059669;color:#047857;background:var(--em-100)}
+.pred-scenario-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+@media(max-width:860px){.pred-scenario-grid{grid-template-columns:1fr}}
+.pred-scenario-card{background:#fff;border:1px solid var(--sl-200);border-radius:1rem;padding:1rem;display:flex;flex-direction:column;gap:.75rem;box-shadow:0 2px 8px rgba(0,0,0,.04)}
+.pred-scenario-label{font-size:.7rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;padding:.25rem .75rem;border-radius:9999px;display:inline-flex}
+.pred-scenario-a-lbl{background:#dbeafe;color:#1d4ed8}
+.pred-scenario-b-lbl{background:#f3e8ff;color:#7e22ce}
+.pred-result-card{background:#f8fafc;border:1px solid var(--sl-200);border-radius:.875rem;padding:1rem;display:flex;flex-direction:column;gap:.75rem}
+.pred-waste-number{font-size:2rem;font-weight:800;color:#0f172a;line-height:1}
+.pred-waste-high{color:#dc2626}
+.pred-waste-mid{color:#d97706}
+.pred-waste-low{color:#059669}
+.pred-range-bar{height:.375rem;border-radius:9999px;background:var(--sl-200);overflow:hidden;margin-top:.25rem;position:relative}
+.pred-range-fill{height:.375rem;border-radius:9999px;background:#059669}
+.pred-range-fill-mid{background:#f59e0b}
+.pred-range-fill-low{background:#e11d48}
+.pred-metric-row{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem}
+.pred-metric-box{background:#fff;border:1px solid var(--sl-200);border-radius:.75rem;padding:.5rem .75rem;text-align:center}
+.pred-metric-val{font-size:1rem;font-weight:800;color:#0f172a}
+.pred-metric-lbl{font-size:.65rem;font-weight:600;color:var(--sl-500);text-transform:uppercase;letter-spacing:.08em}
+.pred-breakdown-tbl{width:100%;border-collapse:collapse;font-size:.8rem}
+.pred-breakdown-tbl th{text-align:left;color:var(--sl-500);font-weight:600;padding:.25rem .375rem;border-bottom:1px solid var(--sl-200)}
+.pred-breakdown-tbl td{padding:.3rem .375rem;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+.pred-breakdown-tbl tr:last-child td{border-bottom:none;font-weight:700}
+.pred-warning-box{border-radius:.75rem;background:#fef3c7;border:1px solid #fde68a;padding:.5rem .75rem;font-size:.8rem;color:#92400e;display:flex;gap:.5rem;align-items:flex-start}
+.pred-similar-row{display:flex;gap:.375rem;align-items:center;font-size:.78rem;padding:.25rem 0;border-bottom:1px solid #f1f5f9}
+.pred-similar-row:last-child{border-bottom:none}
+.pred-insight-box{background:#ecfdf5;border:1px solid #a7f3d0;border-radius:.75rem;padding:.5rem .75rem;font-size:.8rem;color:#065f46}
+.pred-compare-highlight{border:2px solid #6366f1!important;background:#eef2ff!important}
+.pred-diff-badge{display:inline-block;border-radius:9999px;padding:.1rem .5rem;font-size:.7rem;font-weight:700}
+.pred-diff-up{background:#fee2e2;color:#991b1b}
+.pred-diff-dn{background:#d1fae5;color:#065f46}
+
 /* -------- modal -------- */
 .modal-backdrop{position:fixed;inset:0;z-index:40;background:rgba(15,23,42,.4);display:grid;place-items:center;padding:1rem}
 .modal-box{width:100%;max-width:28rem;background:#fff;border-radius:1rem;padding:1.25rem;box-shadow:0 16px 48px rgba(0,0,0,.15)}
@@ -447,67 +483,128 @@ td:last-child{border-radius:0 .75rem .75rem 0}
       <!-- ===== PREDICTION PAGE ===== -->
       <div class="page" id="page-prediction">
         <div class="space-y">
-          <div>
-            <h2 style="font-size:1.5rem;font-weight:800">Prediction Engine</h2>
-            <p class="text-sm-slate">Compare forecast scenarios before kitchen prep starts.</p>
+          <div class="flex-between">
+            <div>
+              <h2 style="font-size:1.5rem;font-weight:800">Prediction Engine</h2>
+              <p class="text-sm-slate">Compare forecast scenarios before kitchen prep starts.</p>
+            </div>
+            <button class="btn btn-em-outline btn-pill" onclick="exportPredictionsCSV()" id="export-btn" style="display:none">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Export CSV
+            </button>
           </div>
 
-          <div style="display:grid;gap:1rem" id="pred-grid">
-            <!-- Scenario A -->
-            <div style="display:flex;flex-direction:column;gap:1rem">
-              <div class="admin-card" style="background:#fff;padding:1rem">
+          <!-- Quick presets -->
+          <div class="admin-card" style="background:#fff;padding:.875rem">
+            <p style="font-size:.75rem;font-weight:700;color:var(--sl-500);margin-bottom:.5rem">Quick Presets — apply to Scenario A</p>
+            <div class="pred-presets">
+              <button class="preset-btn" onclick="applyPreset('regular')">📅 Regular Day</button>
+              <button class="preset-btn" onclick="applyPreset('weekend')">🏖️ Weekend</button>
+              <button class="preset-btn" onclick="applyPreset('exam')">📝 Exam Period</button>
+              <button class="preset-btn" onclick="applyPreset('low')">👥 Low Attendance</button>
+              <button class="preset-btn" onclick="applyPreset('high')">🏫 High Attendance</button>
+            </div>
+          </div>
+
+          <!-- Side-by-side scenario comparison -->
+          <div class="pred-scenario-grid">
+
+            <!-- ── Scenario A ── -->
+            <div class="pred-scenario-card" id="pred-card-a">
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <span class="pred-scenario-label pred-scenario-a-lbl">Scenario A</span>
+              </div>
+
+              <div>
                 <span class="lbl">Meal Slot</span>
-                <select id="pred-meal-a">
+                <select id="pred-meal-a" style="margin-top:.25rem">
                   <option>Breakfast</option><option selected>Lunch</option><option>Tea</option><option>Dinner</option>
                 </select>
               </div>
-              <div class="admin-card" style="background:#fff;padding:1rem" id="scenario-a">
+
+              <div>
                 <label class="lbl">Students Present</label>
-                <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:1rem">
-                  <button class="btn btn-em-outline" onclick="adjStudents('a',-1)" style="padding:.5rem .875rem">−</button>
-                  <input type="number" id="pred-stu-a" value="120" style="text-align:center"/>
-                  <button class="btn btn-em-outline" onclick="adjStudents('a',1)" style="padding:.5rem .875rem">+</button>
+                <div style="display:flex;align-items:center;gap:.5rem;margin-top:.25rem">
+                  <button class="btn btn-em-outline" onclick="adjStudents('a',-10)" style="padding:.4rem .7rem;font-size:.75rem">−10</button>
+                  <button class="btn btn-em-outline" onclick="adjStudents('a',-1)" style="padding:.4rem .7rem">−</button>
+                  <input type="number" id="pred-stu-a" value="120" min="1" max="10000" style="text-align:center"/>
+                  <button class="btn btn-em-outline" onclick="adjStudents('a',1)" style="padding:.4rem .7rem">+</button>
+                  <button class="btn btn-em-outline" onclick="adjStudents('a',10)" style="padding:.4rem .7rem;font-size:.75rem">+10</button>
                 </div>
-                <div class="grid-2" style="margin-bottom:1rem">
-                  <div><p class="lbl">Weekend</p><button class="toggle" id="tog-pred-weekend-a" onclick="togglePredTog('weekend-a')"><span class="toggle-knob"></span><span class="toggle-label">No</span></button></div>
-                  <div><p class="lbl">Exam Period</p><button class="toggle" id="tog-pred-exam-a" onclick="togglePredTog('exam-a')"><span class="toggle-knob"></span><span class="toggle-label">No</span></button></div>
-                </div>
-                <button class="btn btn-green btn-full" id="pred-btn-a" onclick="predict('a')">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2v6l2 2-2 2v6"/><path d="M18 2v6l-2 2 2 2v6"/><path d="M6 12h12"/></svg>
-                  Predict Waste
-                </button>
+                <p id="pred-stu-err-a" class="err-msg hidden">Enter a valid student count (1–10000).</p>
               </div>
-              <div id="pred-result-a" class="hidden admin-card" style="background:#fff;padding:1rem"></div>
+
+              <div class="grid-2">
+                <div>
+                  <p class="lbl">Weekend</p>
+                  <button class="toggle" id="tog-pred-weekend-a" onclick="togglePredTog('weekend-a')"><span class="toggle-knob"></span><span class="toggle-label">No</span></button>
+                </div>
+                <div>
+                  <p class="lbl">Exam Period</p>
+                  <button class="toggle" id="tog-pred-exam-a" onclick="togglePredTog('exam-a')"><span class="toggle-knob"></span><span class="toggle-label">No</span></button>
+                </div>
+              </div>
+
+              <button class="btn btn-green btn-full" id="pred-btn-a" onclick="predict('a')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2v6l2 2-2 2v6"/><path d="M18 2v6l-2 2 2 2v6"/><path d="M6 12h12"/></svg>
+                Predict Waste
+              </button>
+
+              <div id="pred-result-a" class="hidden pred-result-card"></div>
             </div>
-            <!-- Scenario B (hidden initially) -->
-            <div style="display:flex;flex-direction:column;gap:1rem" id="scenario-b-col" class="hidden">
-              <div class="admin-card" style="background:#fff;padding:1rem">
+
+            <!-- ── Scenario B ── -->
+            <div class="pred-scenario-card" id="pred-card-b">
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <span class="pred-scenario-label pred-scenario-b-lbl">Scenario B</span>
+              </div>
+
+              <div>
                 <span class="lbl">Meal Slot</span>
-                <select id="pred-meal-b">
+                <select id="pred-meal-b" style="margin-top:.25rem">
                   <option>Breakfast</option><option>Lunch</option><option>Tea</option><option selected>Dinner</option>
                 </select>
               </div>
-              <div class="admin-card" style="background:#fff;padding:1rem">
+
+              <div>
                 <label class="lbl">Students Present</label>
-                <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:1rem">
-                  <button class="btn btn-em-outline" onclick="adjStudents('b',-1)" style="padding:.5rem .875rem">−</button>
-                  <input type="number" id="pred-stu-b" value="120" style="text-align:center"/>
-                  <button class="btn btn-em-outline" onclick="adjStudents('b',1)" style="padding:.5rem .875rem">+</button>
+                <div style="display:flex;align-items:center;gap:.5rem;margin-top:.25rem">
+                  <button class="btn btn-em-outline" onclick="adjStudents('b',-10)" style="padding:.4rem .7rem;font-size:.75rem">−10</button>
+                  <button class="btn btn-em-outline" onclick="adjStudents('b',-1)" style="padding:.4rem .7rem">−</button>
+                  <input type="number" id="pred-stu-b" value="120" min="1" max="10000" style="text-align:center"/>
+                  <button class="btn btn-em-outline" onclick="adjStudents('b',1)" style="padding:.4rem .7rem">+</button>
+                  <button class="btn btn-em-outline" onclick="adjStudents('b',10)" style="padding:.4rem .7rem;font-size:.75rem">+10</button>
                 </div>
-                <div class="grid-2" style="margin-bottom:1rem">
-                  <div><p class="lbl">Weekend</p><button class="toggle on" id="tog-pred-weekend-b" onclick="togglePredTog('weekend-b')"><span class="toggle-knob" style="transform:translateX(2.75rem)"></span><span class="toggle-label">Yes</span></button></div>
-                  <div><p class="lbl">Exam Period</p><button class="toggle" id="tog-pred-exam-b" onclick="togglePredTog('exam-b')"><span class="toggle-knob"></span><span class="toggle-label">No</span></button></div>
-                </div>
-                <button class="btn btn-green btn-full" id="pred-btn-b" onclick="predict('b')">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2v6l2 2-2 2v6"/><path d="M18 2v6l-2 2 2 2v6"/><path d="M6 12h12"/></svg>
-                  Predict Waste
-                </button>
+                <p id="pred-stu-err-b" class="err-msg hidden">Enter a valid student count (1–10000).</p>
               </div>
-              <div id="pred-result-b" class="hidden admin-card" style="background:#fff;padding:1rem"></div>
+
+              <div class="grid-2">
+                <div>
+                  <p class="lbl">Weekend</p>
+                  <button class="toggle on" id="tog-pred-weekend-b" onclick="togglePredTog('weekend-b')"><span class="toggle-knob" style="transform:translateX(2.75rem)"></span><span class="toggle-label">Yes</span></button>
+                </div>
+                <div>
+                  <p class="lbl">Exam Period</p>
+                  <button class="toggle" id="tog-pred-exam-b" onclick="togglePredTog('exam-b')"><span class="toggle-knob"></span><span class="toggle-label">No</span></button>
+                </div>
+              </div>
+
+              <button class="btn btn-green btn-full" id="pred-btn-b" onclick="predict('b')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2v6l2 2-2 2v6"/><path d="M18 2v6l-2 2 2 2v6"/><path d="M6 12h12"/></svg>
+                Predict Waste
+              </button>
+
+              <div id="pred-result-b" class="hidden pred-result-card"></div>
             </div>
+
+          </div><!-- /pred-scenario-grid -->
+
+          <!-- Comparison summary (shows when both results available) -->
+          <div id="pred-compare-summary" class="hidden admin-card" style="background:#fff;padding:1rem">
+            <p style="font-size:.95rem;font-weight:700;margin-bottom:.75rem">⚖️ Scenario Comparison</p>
+            <div id="pred-compare-body"></div>
           </div>
 
-          <button class="btn btn-em-outline btn-pill" id="compare-btn" onclick="enableCompare()">Compare Another Scenario</button>
         </div>
       </div>
 
@@ -900,10 +997,13 @@ async function confirmDelete(id){
 // ============================================================
 //  Prediction
 // ============================================================
+const PRED_STATE={a:null,b:null};  // stores last full result per scenario
+
 function adjStudents(which,delta){
-  const id=`pred-stu-${which}`;
-  const el=$(id);
-  el.value=Math.max(1,+(el.value||0)+delta);
+  const el=$(`pred-stu-${which}`);
+  const next=Math.max(1,Math.min(10000,(+(el.value||0))+delta));
+  el.value=next;
+  $(`pred-stu-err-${which}`).classList.add('hidden');
 }
 
 function togglePredTog(which){
@@ -912,40 +1012,226 @@ function togglePredTog(which){
   const key=map[which];appState[key]=!appState[key];applyTog(idMap[which],appState[key]);
 }
 
+function applyPreset(type){
+  const presets={
+    regular:{students:120,weekend:false,exam:false,meal:'Lunch'},
+    weekend:{students:95,weekend:true,exam:false,meal:'Lunch'},
+    exam:{students:130,weekend:false,exam:true,meal:'Dinner'},
+    low:{students:70,weekend:false,exam:false,meal:'Breakfast'},
+    high:{students:160,weekend:false,exam:false,meal:'Lunch'},
+  };
+  const p=presets[type];
+  if(!p)return;
+  $('pred-stu-a').value=p.students;
+  $('pred-meal-a').value=p.meal;
+  appState.togPredWeekendA=p.weekend;
+  appState.togPredExamA=p.exam;
+  applyTog('tog-pred-weekend-a',p.weekend);
+  applyTog('tog-pred-exam-a',p.exam);
+}
+
+function _wasteColorClass(kg){
+  if(kg>=10)return 'pred-waste-high';
+  if(kg>=5)return 'pred-waste-mid';
+  return 'pred-waste-low';
+}
+
+function _confidenceBarClass(pct){
+  if(pct>=70)return 'conf-high';
+  if(pct>=45)return 'conf-mid';
+  return 'conf-low';
+}
+
+function _renderPredResult(which, p, mp){
+  const ci=mp.confidence_interval||{};
+  const confPct=+(ci.confidence_pct||0);
+  const barCls=_confidenceBarClass(confPct);
+  const wasteCls=_wasteColorClass(mp.predicted_waste);
+
+  // Item breakdown HTML
+  let breakdownHtml='';
+  if(mp.food_items&&mp.food_items.length){
+    const rows=mp.food_items.map(item=>{
+      const qty=item.litres?`${item.litres} L`:item.pieces?`${item.pieces} pcs (${item.kg} kg)`:`${item.kg} kg`;
+      // Find matching waste item
+      const wi=(mp.waste_items||[]).find(w=>w.name.toLowerCase()===item.name.toLowerCase());
+      const wasteCell=wi?`<td style="color:#dc2626">${wi.waste_kg} kg</td>`:'<td style="color:var(--sl-300)">—</td>';
+      return `<tr><td>${escHtml(item.name)}</td><td>${escHtml(qty)}</td>${wasteCell}</tr>`;
+    }).join('');
+    const costTotal=mp.cost_estimate?mp.cost_estimate.total:0;
+    breakdownHtml=`
+      <details style="margin-top:.25rem">
+        <summary style="cursor:pointer;font-size:.8rem;font-weight:700;color:#047857;user-select:none">📋 Item Breakdown &amp; Cost</summary>
+        <div style="margin-top:.5rem;overflow-x:auto">
+          <table class="pred-breakdown-tbl">
+            <thead><tr><th>Item</th><th>Qty to Prepare</th><th>Est. Waste</th></tr></thead>
+            <tbody>${rows}</tbody>
+            <tfoot><tr><td colspan="2" style="padding-top:.4rem">Total Cost Estimate</td><td style="color:#059669;padding-top:.4rem">₹${costTotal}</td></tr></tfoot>
+          </table>
+        </div>
+      </details>`;
+  }
+
+  // Warnings
+  let warningsHtml='';
+  const warns=[...(p.warnings||[]),...(mp.warnings||[])];
+  const uniqueWarns=[...new Set(warns)];
+  if(uniqueWarns.length){
+    warningsHtml=uniqueWarns.map(w=>`<div class="pred-warning-box"><span>⚠️</span><span>${escHtml(w)}</span></div>`).join('');
+  }
+
+  // Similar scenarios
+  let similarHtml='';
+  if(p.similar_scenarios&&p.similar_scenarios.length){
+    const rows2=p.similar_scenarios.map(s=>{
+      const flags=[s.is_weekend?'Weekend':'',s.is_exam_period?'Exam':''].filter(Boolean).join(', ')||'Regular';
+      return `<div class="pred-similar-row">
+        <span style="font-weight:700;color:var(--sl-700)">${s.students_present} students</span>
+        <span style="color:var(--sl-400);margin:0 .25rem">·</span>
+        <span style="color:var(--sl-500)">${flags}</span>
+        <span style="margin-left:auto;font-weight:700;color:#dc2626">${s.waste_kg} kg waste</span>
+      </div>`;
+    }).join('');
+    similarHtml=`
+      <details style="margin-top:.25rem">
+        <summary style="cursor:pointer;font-size:.8rem;font-weight:700;color:#6b7280;user-select:none">📊 Similar Historical Scenarios</summary>
+        <div style="margin-top:.5rem">${rows2}</div>
+      </details>`;
+  }
+
+  // Optimization insight
+  const wastePerStudent=(mp.predicted_waste/+($(`pred-stu-${which}`).value||1)).toFixed(3);
+  const foodPerStudent=(mp.suggested_food/+($(`pred-stu-${which}`).value||1)).toFixed(3);
+  const insight=`Prepare ~${mp.suggested_food} kg (${foodPerStudent} kg/student) to target waste ≤ ${mp.predicted_waste} kg (${wastePerStudent} kg/student). Consider reducing prep by 5% if attendance may be lower.`;
+
+  const resultEl=$(`pred-result-${which}`);
+  resultEl.innerHTML=`
+    <div style="display:flex;align-items:baseline;gap:.75rem;flex-wrap:wrap">
+      <span class="pred-waste-number ${wasteCls}">${mp.predicted_waste} kg</span>
+      <span style="font-size:.875rem;color:var(--sl-500)">predicted waste · ${mp.meal_slot}</span>
+    </div>
+    <p style="font-size:.85rem;color:var(--sl-700)">Suggested food: <strong>${mp.suggested_food} kg</strong></p>
+    <p style="font-size:.78rem;color:var(--sl-500)">Range: ${ci.low||'?'} – ${ci.high||'?'} kg</p>
+
+    <div style="margin-top:.25rem">
+      <div style="display:flex;justify-content:space-between;font-size:.73rem;font-weight:700;color:var(--sl-500);margin-bottom:.2rem">
+        <span>Confidence</span>
+        <span>${confPct}% — ${escHtml(ci.interpretation||'')}</span>
+      </div>
+      <div class="conf-bar-wrap"><div class="conf-bar ${barCls}" style="width:${confPct}%"></div></div>
+    </div>
+
+    <div class="pred-metric-row" style="margin-top:.25rem">
+      <div class="pred-metric-box">
+        <div class="pred-metric-val">${p.r2!=null?p.r2.toFixed(2):'—'}</div>
+        <div class="pred-metric-lbl">R² Score</div>
+      </div>
+      <div class="pred-metric-box">
+        <div class="pred-metric-val">${p.rmse!=null?p.rmse:'—'}</div>
+        <div class="pred-metric-lbl">RMSE (kg)</div>
+      </div>
+      <div class="pred-metric-box">
+        <div class="pred-metric-val">${p.sample_size!=null?p.sample_size:'—'}</div>
+        <div class="pred-metric-lbl">Training Rows</div>
+      </div>
+    </div>
+
+    ${breakdownHtml}
+    ${similarHtml}
+    ${warningsHtml}
+    <div class="pred-insight-box" style="margin-top:.25rem">💡 ${escHtml(insight)}</div>`;
+
+  resultEl.classList.remove('hidden');
+}
+
+function _updateCompare(){
+  const a=PRED_STATE.a, b=PRED_STATE.b;
+  const summary=$('pred-compare-summary');
+  const body=$('pred-compare-body');
+  if(!a||!b){summary.classList.add('hidden');return;}
+  summary.classList.remove('hidden');
+
+  const diff=+(b.predicted_waste-a.predicted_waste).toFixed(2);
+  const diffFood=+(b.suggested_food-a.suggested_food).toFixed(2);
+  const diffCost=+(((b.cost_estimate||{}).total||0)-((a.cost_estimate||{}).total||0)).toFixed(0);
+  const arrow=diff>0?'▲':'▼';
+  const diffCls=diff>0?'pred-diff-up':'pred-diff-dn';
+
+  body.innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;font-size:.875rem">
+      <div style="background:#dbeafe;border-radius:.75rem;padding:.75rem">
+        <p style="font-size:.7rem;font-weight:700;color:#1d4ed8;margin-bottom:.25rem">SCENARIO A — ${escHtml(a.meal_slot)}</p>
+        <p style="font-size:1.4rem;font-weight:800">${a.predicted_waste} kg waste</p>
+        <p style="color:var(--sl-600)">Food: ${a.suggested_food} kg</p>
+        ${a.cost_estimate?`<p style="color:var(--sl-600)">Cost: ₹${a.cost_estimate.total}</p>`:''}
+      </div>
+      <div style="background:#f3e8ff;border-radius:.75rem;padding:.75rem">
+        <p style="font-size:.7rem;font-weight:700;color:#7e22ce;margin-bottom:.25rem">SCENARIO B — ${escHtml(b.meal_slot)}</p>
+        <p style="font-size:1.4rem;font-weight:800">${b.predicted_waste} kg waste</p>
+        <p style="color:var(--sl-600)">Food: ${b.suggested_food} kg</p>
+        ${b.cost_estimate?`<p style="color:var(--sl-600)">Cost: ₹${b.cost_estimate.total}</p>`:''}
+      </div>
+    </div>
+    <div style="margin-top:.75rem;display:flex;flex-wrap:wrap;gap:.5rem;font-size:.8rem">
+      <span>Waste difference: <span class="pred-diff-badge ${diffCls}">${arrow} ${Math.abs(diff)} kg</span></span>
+      <span style="color:var(--sl-400)">·</span>
+      <span>Food difference: <strong>${diffFood>0?'+':''}${diffFood} kg</strong></span>
+      ${diffCost?`<span style="color:var(--sl-400)">·</span><span>Cost difference: <strong>₹${diffCost>0?'+':''}${diffCost}</strong></span>`:''}
+    </div>`;
+}
+
 async function predict(which){
-  const stu=+$(`pred-stu-${which}`).value||120;
+  const stuEl=$(`pred-stu-${which}`);
+  const stu=+(stuEl.value||0);
+  const errEl=$(`pred-stu-err-${which}`);
+  if(!stu||stu<1||stu>10000){
+    errEl.classList.remove('hidden');
+    stuEl.classList.add('err');
+    return;
+  }
+  errEl.classList.add('hidden');
+  stuEl.classList.remove('err');
+
   const meal=$(`pred-meal-${which}`).value;
   const weekend=appState[which==='a'?'togPredWeekendA':'togPredWeekendB'];
   const exam=appState[which==='a'?'togPredExamA':'togPredExamB'];
   const btnId=`pred-btn-${which}`;
-  $(btnId).textContent='Predicting...';$(btnId).disabled=true;
+  $(btnId).textContent='Predicting…';$(btnId).disabled=true;
   try{
     const [p,mp]=await Promise.all([
       postJSON('/api/predict',{students_present:stu,is_weekend:weekend?1:0,is_exam_period:exam?1:0,meal_slot:meal}),
       postJSON('/api/predict/meal',{students_present:stu,is_weekend:weekend?1:0,is_exam_period:exam?1:0,meal_slot:meal}),
     ]);
-    const uncertainty=Math.max(5,Math.min(95,100-+(p.r2||0)*100));
-    const conf=100-uncertainty;
-    const barCol=uncertainty<35?'conf-high':uncertainty<65?'conf-mid':'conf-low';
-    const resultEl=$(`pred-result-${which}`);
-    resultEl.innerHTML=`
-      <p class="text-sm-slate">Predicted Waste</p>
-      <p style="font-size:2rem;font-weight:800;color:#0f172a">${mp.predicted_waste} kg</p>
-      <p style="margin-top:.5rem;font-size:.875rem;font-weight:700;color:var(--sl-700)">Suggested Food Quantity: ${mp.suggested_food} kg</p>
-      <div style="margin-top:.75rem">
-        <div style="display:flex;justify-content:space-between;font-size:.75rem;font-weight:700;color:var(--sl-500);margin-bottom:.25rem"><span>Confidence</span><span>${conf.toFixed(0)}%</span></div>
-        <div class="conf-bar-wrap"><div class="conf-bar ${barCol}" style="width:${conf}%"></div></div>
-      </div>
-      <p style="margin-top:.75rem;border-radius:.75rem;background:var(--em-100);padding:.5rem .75rem;font-size:.875rem;color:var(--em-700)">Exam periods typically increase food consumption by around 12% in hostel patterns.</p>`;
-    resultEl.classList.remove('hidden');
+    _renderPredResult(which,p,mp);
+    PRED_STATE[which]=mp;
+    _updateCompare();
+    $('export-btn').style.display='';
   }catch(e){showToast(e.message||'Prediction failed');}
   finally{$(btnId).textContent='Predict Waste';$(btnId).disabled=false;}
 }
 
-function enableCompare(){
-  $('scenario-b-col').classList.remove('hidden');
-  $('pred-grid').style.gridTemplateColumns='1fr 1fr';
-  $('compare-btn').classList.add('hidden');
+function exportPredictionsCSV(){
+  const rows=[['Scenario','Meal','Predicted Waste (kg)','Suggested Food (kg)','Confidence %','R2','RMSE','Training Rows','Cost (₹)']];
+  for(const [which,d] of Object.entries(PRED_STATE)){
+    if(!d)continue;
+    const ci=d.confidence_interval||{};
+    rows.push([
+      which==='a'?'Scenario A':'Scenario B',
+      d.meal_slot||'',
+      d.predicted_waste||'',
+      d.suggested_food||'',
+      ci.confidence_pct||'',
+      d.r2||'',
+      d.rmse||'',
+      d.sample_size||'',
+      (d.cost_estimate||{}).total||'',
+    ]);
+  }
+  const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download=`prediction_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
 }
 
 // ============================================================
