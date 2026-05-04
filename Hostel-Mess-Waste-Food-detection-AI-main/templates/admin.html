@@ -488,8 +488,8 @@ td:last-child{border-radius:0 .75rem .75rem 0}
               <h2 style="font-size:1.5rem;font-weight:800">Prediction Engine</h2>
               <p class="text-sm-slate">Compare forecast scenarios before kitchen prep starts.</p>
             </div>
-            <button class="btn btn-em-outline btn-pill" onclick="exportPredictionsCSV()" id="export-btn" style="display:none">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <button class="btn btn-em-outline btn-pill" onclick="exportPredictionsCSV()" id="export-btn" style="display:none" aria-label="Export predictions as CSV">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               Export CSV
             </button>
           </div>
@@ -545,8 +545,8 @@ td:last-child{border-radius:0 .75rem .75rem 0}
                 </div>
               </div>
 
-              <button class="btn btn-green btn-full" id="pred-btn-a" onclick="predict('a')">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2v6l2 2-2 2v6"/><path d="M18 2v6l-2 2 2 2v6"/><path d="M6 12h12"/></svg>
+              <button class="btn btn-green btn-full" id="pred-btn-a" onclick="predict('a')" aria-label="Run waste prediction for Scenario A">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 2v6l2 2-2 2v6"/><path d="M18 2v6l-2 2 2 2v6"/><path d="M6 12h12"/></svg>
                 Predict Waste
               </button>
 
@@ -589,8 +589,8 @@ td:last-child{border-radius:0 .75rem .75rem 0}
                 </div>
               </div>
 
-              <button class="btn btn-green btn-full" id="pred-btn-b" onclick="predict('b')">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2v6l2 2-2 2v6"/><path d="M18 2v6l-2 2 2 2v6"/><path d="M6 12h12"/></svg>
+              <button class="btn btn-green btn-full" id="pred-btn-b" onclick="predict('b')" aria-label="Run waste prediction for Scenario B">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 2v6l2 2-2 2v6"/><path d="M18 2v6l-2 2 2 2v6"/><path d="M6 12h12"/></svg>
                 Predict Waste
               </button>
 
@@ -1042,17 +1042,24 @@ function _confidenceBarClass(pct){
   return 'conf-low';
 }
 
+function formatItemQty(item){
+  if(item.litres)return `${item.litres} L`;
+  if(item.pieces)return `${item.pieces} pcs (${item.kg} kg)`;
+  return `${item.kg} kg`;
+}
+
 function _renderPredResult(which, p, mp){
   const ci=mp.confidence_interval||{};
   const confPct=+(ci.confidence_pct||0);
   const barCls=_confidenceBarClass(confPct);
   const wasteCls=_wasteColorClass(mp.predicted_waste);
+  const stuCount=+($(`pred-stu-${which}`).value||1);
 
   // Item breakdown HTML
   let breakdownHtml='';
   if(mp.food_items&&mp.food_items.length){
     const rows=mp.food_items.map(item=>{
-      const qty=item.litres?`${item.litres} L`:item.pieces?`${item.pieces} pcs (${item.kg} kg)`:`${item.kg} kg`;
+      const qty=formatItemQty(item);
       // Find matching waste item
       const wi=(mp.waste_items||[]).find(w=>w.name.toLowerCase()===item.name.toLowerCase());
       const wasteCell=wi?`<td style="color:#dc2626">${wi.waste_kg} kg</td>`:'<td style="color:var(--sl-300)">—</td>';
@@ -1100,8 +1107,8 @@ function _renderPredResult(which, p, mp){
   }
 
   // Optimization insight
-  const wastePerStudent=(mp.predicted_waste/+($(`pred-stu-${which}`).value||1)).toFixed(3);
-  const foodPerStudent=(mp.suggested_food/+($(`pred-stu-${which}`).value||1)).toFixed(3);
+  const wastePerStudent=(mp.predicted_waste/stuCount).toFixed(3);
+  const foodPerStudent=(mp.suggested_food/stuCount).toFixed(3);
   const insight=`Prepare ~${mp.suggested_food} kg (${foodPerStudent} kg/student) to target waste ≤ ${mp.predicted_waste} kg (${wastePerStudent} kg/student). Consider reducing prep by 5% if attendance may be lower.`;
 
   const resultEl=$(`pred-result-${which}`);
@@ -1227,7 +1234,12 @@ function exportPredictionsCSV(){
       (d.cost_estimate||{}).total||'',
     ]);
   }
-  const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const csv=rows.map(r=>r.map(v=>{
+    const s=String(v);
+    // Prefix values that start with formula characters to prevent CSV injection
+    const safe=/^[=+\-@\t\r]/.test(s)?`'${s}`:s;
+    return `"${safe.replace(/"/g,'""')}"`;
+  }).join(',')).join('\n');
   const a=document.createElement('a');
   a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
   a.download=`prediction_${new Date().toISOString().slice(0,10)}.csv`;

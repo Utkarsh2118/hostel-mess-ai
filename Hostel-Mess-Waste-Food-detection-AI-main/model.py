@@ -1,12 +1,18 @@
 from __future__ import annotations
 
-import math
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
 from sklearn.linear_model import LinearRegression
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.metrics import mean_absolute_error, root_mean_squared_error, r2_score
+
+# Confidence score weights: R² contributes up to R2_WEIGHT points,
+# sample-size reliability contributes up to SAMPLE_WEIGHT points.
+R2_WEIGHT = 70
+SAMPLE_WEIGHT = 30
+# Sample size considered "fully reliable" for confidence scoring.
+FULL_RELIABILITY_SAMPLES = 30
 
 
 DATASET_COLUMNS = [
@@ -72,7 +78,7 @@ def train_waste_model(df: pd.DataFrame) -> dict[str, Any]:
 	model.fit(x, y)
 	prediction = model.predict(x)
 	score = float(r2_score(y, prediction)) if len(df) > 1 else 0.0
-	rmse = float(math.sqrt(mean_squared_error(y, prediction)))
+	rmse = float(root_mean_squared_error(y, prediction))
 	mae = float(mean_absolute_error(y, prediction))
 
 	return {
@@ -154,8 +160,8 @@ def prediction_confidence_interval(
 	if sample_size == 0:
 		confidence_pct = 0
 	else:
-		size_bonus = min(1.0, sample_size / 30.0)
-		confidence_pct = round(max(0.0, min(100.0, r2 * 70 + size_bonus * 30)), 1)
+		size_bonus = min(1.0, sample_size / FULL_RELIABILITY_SAMPLES)
+		confidence_pct = round(max(0.0, min(100.0, r2 * R2_WEIGHT + size_bonus * SAMPLE_WEIGHT)), 1)
 
 	# Human-readable interpretation
 	if confidence_pct >= 80:
