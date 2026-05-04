@@ -722,7 +722,7 @@ def call_chatbot_llm(message: str, dataset: pd.DataFrame, trained: dict, menu_da
         menu_context = "\nCurrent menu:\n" + "\n".join(menu_lines)
 
     system_prompt = (
-        "You are a smart assistant ONLY for hostel mess management. "
+        "You are a smart assistant ONLY for hostel mess management in India. "
         "ONLY answer questions about: food waste, food quantities, meal planning, attendance, "
         "menu items, hostel canteen operations, and related topics. "
         "If the question is completely unrelated to hostel mess (e.g. geography, sports, politics, jokes), "
@@ -730,92 +730,65 @@ def call_chatbot_llm(message: str, dataset: pd.DataFrame, trained: dict, menu_da
         "When answering food quantity questions, always break down the total into individual menu items "
         "(e.g. Dal: 8 kg, Chawal: 12 kg, Sabzi: 7 kg, Roti: 150 pieces). "
         "When answering waste questions, also break down waste per item. "
-        "Use kilograms for quantities. Be concise and practical."
+        "Use kilograms for quantities. Be concise and practical. "
+        f"Current context: students={latest_students}, waste_kg={latest_waste}, "
+        f"prepared_kg={latest_food}, model_r2={model_r2}.{menu_context}"
     )
-    context_prompt = (
-        f"Current known context: latest_students={latest_students}, "
-        f"latest_waste_kg={latest_waste}, latest_prepared_food_kg={latest_food}, model_r2={model_r2}."
-        f"{menu_context}"
-    )
+
+    # Groq uses OpenAI-compatible API format
+    GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions"
+    GROQ_MODEL = CHATBOT_MODEL if CHATBOT_MODEL else "llama-3.1-8b-instant"
 
     payload = {
-        "systemInstruction": {
-            "parts": [{"text": f"{system_prompt}\n{context_prompt}"}],
-        },
-        "contents": [
-            {
-                "role": "user",
-                "parts": [{"text": message}],
-            }
+        "model": GROQ_MODEL,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user",   "content": message},
         ],
-        "generationConfig": {
-            "temperature": 0.25,
-            "maxOutputTokens": 220,
-        },
+        "temperature": 0.25,
+        "max_tokens": 350,
     }
 
-    model_candidates = [CHATBOT_MODEL] + [
-        model for model in CHATBOT_MODEL_FALLBACKS if model != CHATBOT_MODEL
-    ]
-    last_error = "request_failed"
+    req = url_request.Request(
+        GROQ_ENDPOINT,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {CHATBOT_API_KEY}",
+        },
+        method="POST",
+    )
 
-    for model_name in model_candidates:
-        endpoint_base = CHATBOT_API_URL.format(model=model_name)
-        separator = "&" if "?" in endpoint_base else "?"
-        endpoint = f"{endpoint_base}{separator}key={CHATBOT_API_KEY}"
+    try:
+        with url_request.urlopen(req, timeout=20) as response:
+            parsed = json.loads(response.read().decode("utf-8"))
+            content_text = (
+                parsed.get("choices", [{}])[0]
+                .get("message", {})
+                .get("content", "")
+                .strip()
+            )
+            if content_text:
+                return {"text": content_text, "error": None}
+            return {"text": None, "error": "empty_ai_response"}
 
-        req = url_request.Request(
-            endpoint,
-            data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-
+    except url_error.HTTPError as exc:
         try:
-            with url_request.urlopen(req, timeout=20) as response:
-                raw = response.read().decode("utf-8")
-                parsed = json.loads(raw)
-                candidates = parsed.get("candidates") or []
-                if not candidates:
-                    last_error = "empty_ai_response"
-                    continue
+            body = exc.read().decode("utf-8", errors="ignore")
+        except Exception:
+            body = ""
 
-                first = candidates[0] if isinstance(candidates[0], dict) else {}
-                content = first.get("content") or {}
-                parts = content.get("parts") or []
+        if exc.code == 401 or "invalid_api_key" in body.lower() or "authentication" in body.lower():
+            return {"text": None, "error": "invalid_api_key"}
+        if exc.code == 429 or "quota" in body.lower() or "rate_limit" in body.lower():
+            return {"text": None, "error": "quota_exceeded"}
+        if exc.code == 404:
+            return {"text": None, "error": "model_not_found"}
 
-                text_chunks = [
-                    str(part.get("text", "")).strip()
-                    for part in parts
-                    if isinstance(part, dict) and str(part.get("text", "")).strip()
-                ]
-                content_text = "\n".join(text_chunks).strip()
-                if content_text:
-                    return {"text": content_text, "error": None}
+        return {"text": None, "error": f"http_{exc.code}"}
 
-                last_error = "empty_ai_response"
-                continue
-        except url_error.HTTPError as exc:
-            try:
-                body = exc.read().decode("utf-8", errors="ignore")
-            except Exception:
-                body = ""
-
-            if body and "API key not valid" in body:
-                return {"text": None, "error": "invalid_api_key"}
-            if body and "quota" in body.lower():
-                return {"text": None, "error": "quota_exceeded"}
-
-            if exc.code == 404:
-                last_error = "model_not_found"
-                continue
-
-            return {"text": None, "error": f"http_{exc.code}"}
-        except (url_error.URLError, TimeoutError, ValueError, json.JSONDecodeError, KeyError):
-            last_error = "request_failed"
-            continue
-
-    return {"text": None, "error": last_error}
+    except (url_error.URLError, TimeoutError, ValueError, json.JSONDecodeError, KeyError):
+        return {"text": None, "error": "request_failed"}
 
 
 def chatbot_fallback_reason(error_code: str | None) -> str | None:
