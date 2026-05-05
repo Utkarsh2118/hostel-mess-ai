@@ -245,8 +245,16 @@ td:last-child{border-radius:0 .75rem .75rem 0}
               <h2 style="font-size:1.5rem;font-weight:800">Dashboard</h2>
               <p class="text-sm-slate">Daily insights, live attendance and waste planning.</p>
             </div>
-            <button class="btn btn-em-outline btn-pill" onclick="refreshAll()">Refresh</button>
+            <div style="display:flex;gap:.5rem">
+              <button class="btn btn-em-outline btn-pill" onclick="showDailySummary()" title="Daily Summary Report">
+                📊 Summary
+              </button>
+              <button class="btn btn-em-outline btn-pill" onclick="refreshAll()">Refresh</button>
+            </div>
           </div>
+
+          <!-- Smart Alerts Panel -->
+          <div id="alerts-panel" style="display:none;flex-direction:column;gap:.5rem"></div>
 
           <!-- stat cards -->
           <div class="stats-grid" id="stat-cards"></div>
@@ -519,16 +527,9 @@ td:last-child{border-radius:0 .75rem .75rem 0}
               <h2 style="font-size:1.5rem;font-weight:800">Chatbot</h2>
               <p class="text-sm-slate">AI/RULE response assistant for operational questions.</p>
             </div>
-            <div style="display:flex;gap:.5rem;align-items:center">
-              <!-- Hindi toggle -->
-              <button id="lang-toggle" onclick="toggleLang()" title="Toggle Hindi/English"
-                style="padding:.35rem .75rem;border-radius:9999px;border:1.5px solid #1D9E75;background:#fff;color:#1D9E75;font-size:.78rem;font-weight:600;cursor:pointer">
-                🇮🇳 हिंदी
-              </button>
-              <button class="btn btn-em-outline" onclick="clearChat()" title="Clear chat">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              </button>
-            </div>
+            <button class="btn btn-em-outline" onclick="clearChat()" title="Clear chat">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
           </div>
 
           <div class="admin-card" style="background:#fff;padding:1rem;flex:1;display:flex;flex-direction:column">
@@ -539,16 +540,9 @@ td:last-child{border-radius:0 .75rem .75rem 0}
               <button class="chip" onclick="setInput('Food for 90 students on weekend?')">📅 Weekend estimate</button>
               <button class="chip" onclick="setInput('Food for 110 students during exam period?')">📝 Exam period</button>
               <button class="chip" onclick="setInput('How to reduce dinner food waste?')">💡 Reduce waste tips</button>
-              <button class="chip" onclick="setInput('Cost for 100 students at lunch?')">💰 Cost estimate</button>
-              <button class="chip" onclick="setInput('Show waste trend analysis')">📊 Waste trend</button>
             </div>
             <div class="chat-messages" id="chat-messages"></div>
             <div style="display:flex;align-items:center;gap:.5rem">
-              <!-- Voice input button -->
-              <button id="voice-btn" onclick="toggleVoice()" title="Voice input"
-                style="width:38px;height:38px;border-radius:50%;border:1.5px solid #d1d5db;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:all .2s">
-                🎤
-              </button>
               <input type="text" id="chat-input" placeholder="Type your question..." style="border-radius:9999px;flex:1" onkeydown="if(event.key==='Enter')sendChat()"/>
               <button class="btn btn-green" style="border-radius:9999px;padding:.625rem" onclick="sendChat()">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
@@ -965,116 +959,16 @@ function enableCompare(){
 // ============================================================
 //  Chatbot
 // ============================================================
-function setInput(text){$('chat-input').value=text;}
-
-// ── Language toggle ──────────────────────────────────────────────────────
-let isHindi = false;
-const HINDI_CHIPS = [
-  ['🍱 120 छात्रों के लिए दोपहर का खाना', '120 students ke lunch ke liye kitna khana banana hai?'],
-  ['🌙 80 छात्रों के लिए रात का खाना', '80 students ke dinner ke liye kitna khana chahiye?'],
-  ['🗑️ बर्बादी का अनुमान', 'Aaj lunch mein kitna waste hoga?'],
-  ['📅 वीकेंड अनुमान', '90 students ke liye weekend pe kitna khana banana hai?'],
-  ['💰 लागत अनुमान', 'Lunch ke liye 100 students ka cost kya hoga?'],
-  ['📊 बर्बादी का ट्रेंड', 'Waste trend analysis dikhao'],
-];
-const EN_CHIPS = [
-  ['🍱 Lunch for 120', 'Food for 120 students at lunch?'],
-  ['🌙 Dinner for 80', 'How much food for 80 students at dinner?'],
-  ['🗑️ Waste at lunch', 'Waste estimate for 100 students at lunch?'],
-  ['📅 Weekend estimate', 'Food for 90 students on weekend?'],
-  ['💰 Cost estimate', 'Cost for 100 students at lunch?'],
-  ['📊 Waste trend', 'Show waste trend analysis'],
-];
-
-function toggleLang(){
-  isHindi=!isHindi;
-  const btn=$('lang-toggle');
-  const input=$('chat-input');
-  const chipRow=document.querySelector('.chip-row');
-  if(isHindi){
-    btn.textContent='🇬🇧 English';
-    btn.style.borderColor='#f59e0b';btn.style.color='#f59e0b';
-    input.placeholder='अपना सवाल टाइप करें...';
-    chipRow.innerHTML=HINDI_CHIPS.map(([label,val])=>
-      `<button class="chip" onclick="setInput('${val}')">${label}</button>`).join('');
-  } else {
-    btn.textContent='🇮🇳 हिंदी';
-    btn.style.borderColor='#1D9E75';btn.style.color='#1D9E75';
-    input.placeholder='Type your question...';
-    chipRow.innerHTML=EN_CHIPS.map(([label,val])=>
-      `<button class="chip" onclick="setInput('${val}')">${label}</button>`).join('');
-  }
-}
-
-// ── Voice Input ──────────────────────────────────────────────────────────
-let recognition=null;
-let isListening=false;
-
-function toggleVoice(){
-  const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SpeechRecognition){
-    showToast('Voice input not supported in this browser. Use Chrome!');
-    return;
-  }
-  if(isListening){
-    recognition.stop();
-    return;
-  }
-  recognition=new SpeechRecognition();
-  recognition.lang=isHindi?'hi-IN':'en-IN';
-  recognition.interimResults=false;
-  recognition.maxAlternatives=1;
-
-  const btn=$('voice-btn');
-  recognition.onstart=()=>{
-    isListening=true;
-    btn.style.background='#fee2e2';
-    btn.style.borderColor='#ef4444';
-    btn.textContent='🔴';
-    btn.title='Click to stop';
-  };
-  recognition.onresult=(e)=>{
-    const transcript=e.results[0][0].transcript;
-    $('chat-input').value=transcript;
-    sendChat();
-  };
-  recognition.onerror=(e)=>{
-    showToast('Voice error: '+e.error+'. Try again!');
-  };
-  recognition.onend=()=>{
-    isListening=false;
-    btn.style.background='#fff';
-    btn.style.borderColor='#d1d5db';
-    btn.textContent='🎤';
-    btn.title='Voice input';
-  };
-  recognition.start();
-}
-
-// ── Feedback ─────────────────────────────────────────────────────────────
-const feedbackData={};
-
-function submitFeedback(msgId, val){
-  feedbackData[msgId]=val;
-  const row=document.getElementById('fb-'+msgId);
-  if(row){
-    row.innerHTML=val===1
-      ?'<span style="font-size:.75rem;color:#1D9E75">👍 Thanks for the feedback!</span>'
-      :'<span style="font-size:.75rem;color:#ef4444">👎 We\'ll improve!</span>';
-  }
-}
-
-// ── Chat core ─────────────────────────────────────────────────────────────
-let chatMessages=[{role:'bot',text:'Namaste Admin! 👋\n\nAsk me about:\n• Food quantities per item (Dal, Chawal, Sabzi…)\n• Waste estimates per menu item\n• Cost estimation (₹ per meal)\n• Waste trends & history\n• Weekend or exam adjustments\n\nTip: Use 🎤 voice input or 🇮🇳 Hindi button above!',source:'ai'}];
-let chatHistory=[];
-let msgCounter=0;
+let chatMessages=[{role:'bot',text:'Namaste Admin! 👋\n\nAsk me about:\n• Food quantities per item (Dal, Chawal, Sabzi…)\n• Waste estimates per menu item\n• Weekend or exam adjustments\n\nExample: "Food for 120 students at lunch?"',source:'ai'}];
 
 function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
 function formatBotText(text){
+  // Render newlines as <br>, and bold lines starting with emoji or "Total"
   return text.split('\n').map(line=>{
     const l=line.trim();
     if(!l)return '<br>';
+    // Item lines like "  • Dal: 8 kg" — render as a styled row
     if(l.startsWith('•')){
       const parts=l.replace('•','').split(':');
       if(parts.length>=2){
@@ -1083,10 +977,12 @@ function formatBotText(text){
         return `<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #e8f4ef;font-size:.82rem"><span style="color:#335348">${name}</span><span style="font-weight:600;color:#0f7a5a">${qty}</span></div>`;
       }
     }
-    if(/^[📋🗑️💰📊✅💡📈📉]/u.test(l)){
+    // Header lines (contain 📋 or 🗑️)
+    if(l.includes('📋')||l.includes('🗑️')){
       return `<div style="font-weight:700;margin:4px 0 6px;font-size:.85rem;color:#13291f">${escHtml(l)}</div>`;
     }
-    if(l.toLowerCase().startsWith('total')||l.toLowerCase().startsWith('per student')){
+    // Total lines
+    if(l.toLowerCase().startsWith('total')){
       return `<div style="font-weight:700;padding-top:5px;font-size:.83rem;color:#0d7c5f">${escHtml(l)}</div>`;
     }
     return `<div style="line-height:1.5;font-size:.85rem">${escHtml(l)}</div>`;
@@ -1095,7 +991,7 @@ function formatBotText(text){
 
 function renderChat(){
   const wrap=$('chat-messages');
-  wrap.innerHTML=chatMessages.map((m,i)=>{
+  wrap.innerHTML=chatMessages.map(m=>{
     if(m.role==='user'){
       return`<div style="display:flex;justify-content:flex-end"><div class="chat-bubble user" style="white-space:pre-wrap">${escHtml(m.text)}</div></div>`;
     }
@@ -1108,14 +1004,9 @@ function renderChat(){
     }
     const badge=m.source==='ai'?'<span class="ai-badge">AI</span>':'<span class="rule-badge">RULE</span>';
     const mealTag=m.meal_slot&&m.meal_slot!=='Lunch'?`<span style="font-size:.7rem;background:#e8f4ef;color:#0b7055;padding:1px 7px;border-radius:99px;margin-left:4px">${escHtml(m.meal_slot)}</span>`:'';
-    // Feedback row — only for bot messages that are not the welcome message
-    const fbRow = i>0 ? `<div id="fb-${m.id}" style="display:flex;gap:6px;margin-top:6px;align-items:center">
-      <span style="font-size:.7rem;color:#9ca3af">Helpful?</span>
-      <button onclick="submitFeedback('${m.id}',1)" style="background:none;border:1px solid #d1d5db;border-radius:99px;padding:1px 8px;cursor:pointer;font-size:.75rem">👍</button>
-      <button onclick="submitFeedback('${m.id}',-1)" style="background:none;border:1px solid #d1d5db;border-radius:99px;padding:1px 8px;cursor:pointer;font-size:.75rem">👎</button>
-    </div>` : '';
-    return`<div style="display:flex;justify-content:flex-start"><div class="chat-bubble bot"><div style="display:flex;align-items:center;gap:4px;margin-bottom:6px">${badge}${mealTag}</div><div>${formatBotText(m.text)}</div>${fbRow}</div></div>`;
+    return`<div style="display:flex;justify-content:flex-start"><div class="chat-bubble bot"><div style="display:flex;align-items:center;gap:4px;margin-bottom:6px">${badge}${mealTag}</div><div>${formatBotText(m.text)}</div></div></div>`;
   }).join('');
+  // inject keyframe if not present
   if(!document.getElementById('tdot-style')){
     const s=document.createElement('style');s.id='tdot-style';
     s.textContent='@keyframes tdot{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}}';
@@ -1123,6 +1014,8 @@ function renderChat(){
   }
   wrap.scrollTop=wrap.scrollHeight;
 }
+
+function setInput(text){$('chat-input').value=text;}
 
 async function sendChat(){
   const msg=$('chat-input').value.trim();
@@ -1132,22 +1025,17 @@ async function sendChat(){
   chatMessages.push({role:'bot',text:'',source:'rule',_typing:true});
   renderChat();
   try{
-    const r=await postJSON('/api/chatbot',{message:msg,history:chatHistory,lang:isHindi?'hi':'en'});
+    const r=await postJSON('/api/chatbot',{message:msg});
     chatMessages=chatMessages.filter(m=>!m._typing);
-    const botReply=r.reply||'No response.';
-    const msgId='m'+(++msgCounter);
-    chatMessages.push({role:'bot',text:botReply,source:r.source||'rule',meal_slot:r.meal_slot||'',id:msgId});
-    chatHistory.push({role:'user',content:msg});
-    chatHistory.push({role:'model',content:botReply});
-    if(chatHistory.length>20)chatHistory=chatHistory.slice(-20);
+    chatMessages.push({role:'bot',text:r.reply||'No response.',source:r.source||'rule',meal_slot:r.meal_slot||''});
   }catch{
     chatMessages=chatMessages.filter(m=>!m._typing);
-    chatMessages.push({role:'bot',text:'Unable to get a response. Please try again.',source:'rule',id:'err'+(++msgCounter)});
+    chatMessages.push({role:'bot',text:'Unable to get a response. Please try again.',source:'rule'});
   }
   renderChat();
 }
 
-function clearChat(){chatMessages=[];chatHistory=[];msgCounter=0;renderChat();}
+function clearChat(){chatMessages=[];renderChat();}
 
 // ============================================================
 //  Finalize modal
@@ -1163,6 +1051,113 @@ async function finalizeDay(){
   }catch(e){showToast(e.message||'Unable to finalize day');closeFinalizeModal();}
 }
 
+
+// ============================================================
+//  PHASE 3 — Smart Alerts + Daily Summary
+// ============================================================
+const ALERT_COLORS = {
+  danger:  {bg:'#fef2f2', border:'#fca5a5', icon:'#dc2626', text:'#991b1b'},
+  warning: {bg:'#fffbeb', border:'#fcd34d', icon:'#d97706', text:'#92400e'},
+  success: {bg:'#f0fdf4', border:'#86efac', icon:'#16a34a', text:'#14532d'},
+  info:    {bg:'#eff6ff', border:'#93c5fd', icon:'#2563eb', text:'#1e3a8a'},
+};
+
+async function loadAlerts(){
+  try{
+    const r = await fetch('/api/alerts');
+    if(!r.ok) return;
+    const data = await r.json();
+    const panel = document.getElementById('alerts-panel');
+    if(!data.alerts || data.alerts.length===0){panel.style.display='none';return;}
+    panel.style.display='flex';
+    panel.innerHTML = data.alerts.map(a=>{
+      const c = ALERT_COLORS[a.type]||ALERT_COLORS.info;
+      return `<div style="display:flex;gap:.75rem;align-items:flex-start;padding:.875rem 1rem;border-radius:.75rem;border:1px solid ${c.border};background:${c.bg}">
+        <span style="font-size:1.25rem;flex-shrink:0">${a.icon}</span>
+        <div>
+          <div style="font-weight:700;font-size:.88rem;color:${c.text}">${escHtml(a.title)}</div>
+          <div style="font-size:.82rem;color:${c.text};opacity:.85;margin-top:2px">${escHtml(a.message)}</div>
+        </div>
+        <button onclick="this.parentElement.remove()" style="margin-left:auto;background:none;border:none;cursor:pointer;color:${c.text};opacity:.5;font-size:1rem;flex-shrink:0">✕</button>
+      </div>`;
+    }).join('');
+  }catch(e){console.warn('Alerts load failed',e);}
+}
+
+async function showDailySummary(){
+  document.getElementById('daily-summary-modal').classList.remove('hidden');
+  document.getElementById('summary-content').innerHTML='<div style="text-align:center;padding:2rem;color:#94a3b8">Loading summary...</div>';
+  try{
+    const r = await fetch('/api/daily-summary');
+    const d = await r.json();
+    document.getElementById('summary-date').textContent = d.date + ' · Generated at ' + d.generated_at;
+
+    let html = '';
+
+    // Overview cards
+    html += `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem">
+      <div style="background:#f0fdf4;border-radius:.75rem;padding:.875rem;text-align:center">
+        <div style="font-size:1.4rem;font-weight:800;color:#16a34a">${d.expected_students}</div>
+        <div style="font-size:.75rem;color:#4b7c5a">Expected Students</div>
+      </div>
+      <div style="background:#eff6ff;border-radius:.75rem;padding:.875rem;text-align:center">
+        <div style="font-size:1.4rem;font-weight:800;color:#2563eb">${d.total_food_kg} kg</div>
+        <div style="font-size:.75rem;color:#1e3a8a">Total Food Needed</div>
+      </div>
+      <div style="background:${d.total_waste_kg>10?'#fef2f2':'#fefce8'};border-radius:.75rem;padding:.875rem;text-align:center">
+        <div style="font-size:1.4rem;font-weight:800;color:${d.total_waste_kg>10?'#dc2626':'#ca8a04'}">${d.total_waste_kg} kg</div>
+        <div style="font-size:.75rem;color:${d.total_waste_kg>10?'#991b1b':'#713f12'}">Predicted Waste</div>
+      </div>
+    </div>`;
+
+    if(d.is_weekend){
+      html+=`<div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:.75rem;padding:.75rem;font-size:.83rem;color:#92400e">
+        📅 <strong>Weekend:</strong> Attendance may be 15-20% lower than usual.
+      </div>`;
+    }
+
+    // Meal-wise breakdown
+    html += `<div style="font-weight:700;font-size:.95rem;margin-top:.25rem">Meal-wise Preparation Plan</div>`;
+    d.meal_predictions.forEach(mp=>{
+      html += `<div style="border:1px solid #e2e8f0;border-radius:.75rem;padding:.875rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
+          <span style="font-weight:700;font-size:.9rem">${mp.meal}</span>
+          <span style="font-size:.78rem;color:#64748b">${mp.students} students · ${mp.food_kg} kg · ~${mp.waste_kg} kg waste</span>
+        </div>`;
+      if(mp.items && mp.items.length>0){
+        mp.items.forEach(item=>{
+          const qty = item.litres ? `${item.litres} L` : item.pieces ? `${item.pieces} pcs (${item.kg}kg)` : `${item.kg} kg`;
+          html+=`<div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid #f1f5f9;font-size:.8rem">
+            <span style="color:#475569">${item.name}</span>
+            <span style="font-weight:600;color:#0f7a5a">${qty}</span>
+          </div>`;
+        });
+      } else {
+        html+=`<div style="font-size:.8rem;color:#94a3b8">${mp.menu||'No menu set for this meal'}</div>`;
+      }
+      html+=`</div>`;
+    });
+
+    // Trend
+    html+=`<div style="background:#f8fafc;border-radius:.75rem;padding:.875rem">
+      <div style="font-weight:700;font-size:.85rem;margin-bottom:.4rem">📊 Waste Trend</div>
+      <pre style="font-size:.78rem;color:#475569;white-space:pre-wrap;font-family:inherit;margin:0">${d.trend_summary}</pre>
+    </div>`;
+
+    document.getElementById('summary-content').innerHTML = html;
+  }catch(e){
+    document.getElementById('summary-content').innerHTML='<div style="color:#dc2626;padding:1rem">Failed to load summary. Please try again.</div>';
+  }
+}
+
+function closeDailySummary(){
+  document.getElementById('daily-summary-modal').classList.add('hidden');
+}
+
+// Load alerts on page load and every 5 minutes
+loadAlerts();
+setInterval(loadAlerts, 5*60*1000);
+
 // ============================================================
 //  Init
 // ============================================================
@@ -1171,5 +1166,21 @@ $('rst-date').value=new Date().toISOString().slice(0,10);
 renderChat();
 refreshAll().catch(()=>{renderAll();});
 </script>
+<!-- Daily Summary Modal -->
+<div id="daily-summary-modal" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:999;display:flex;align-items:center;justify-content:center;padding:1rem">
+  <div style="background:#fff;border-radius:1rem;max-width:600px;width:100%;max-height:85vh;overflow-y:auto;padding:1.5rem;box-shadow:0 8px 32px rgba(0,0,0,.18)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+      <div>
+        <h2 style="font-size:1.25rem;font-weight:800">📊 Daily Summary Report</h2>
+        <p id="summary-date" style="font-size:.82rem;color:#64748b"></p>
+      </div>
+      <button onclick="closeDailySummary()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#64748b">✕</button>
+    </div>
+    <div id="summary-content" style="display:flex;flex-direction:column;gap:1rem">
+      <div style="text-align:center;padding:2rem;color:#94a3b8">Loading...</div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
