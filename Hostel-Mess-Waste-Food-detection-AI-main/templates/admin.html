@@ -519,9 +519,16 @@ td:last-child{border-radius:0 .75rem .75rem 0}
               <h2 style="font-size:1.5rem;font-weight:800">Chatbot</h2>
               <p class="text-sm-slate">AI/RULE response assistant for operational questions.</p>
             </div>
-            <button class="btn btn-em-outline" onclick="clearChat()" title="Clear chat">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
+            <div style="display:flex;gap:.5rem;align-items:center">
+              <!-- Hindi toggle -->
+              <button id="lang-toggle" onclick="toggleLang()" title="Toggle Hindi/English"
+                style="padding:.35rem .75rem;border-radius:9999px;border:1.5px solid #1D9E75;background:#fff;color:#1D9E75;font-size:.78rem;font-weight:600;cursor:pointer">
+                🇮🇳 हिंदी
+              </button>
+              <button class="btn btn-em-outline" onclick="clearChat()" title="Clear chat">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
           </div>
 
           <div class="admin-card" style="background:#fff;padding:1rem;flex:1;display:flex;flex-direction:column">
@@ -532,9 +539,16 @@ td:last-child{border-radius:0 .75rem .75rem 0}
               <button class="chip" onclick="setInput('Food for 90 students on weekend?')">📅 Weekend estimate</button>
               <button class="chip" onclick="setInput('Food for 110 students during exam period?')">📝 Exam period</button>
               <button class="chip" onclick="setInput('How to reduce dinner food waste?')">💡 Reduce waste tips</button>
+              <button class="chip" onclick="setInput('Cost for 100 students at lunch?')">💰 Cost estimate</button>
+              <button class="chip" onclick="setInput('Show waste trend analysis')">📊 Waste trend</button>
             </div>
             <div class="chat-messages" id="chat-messages"></div>
             <div style="display:flex;align-items:center;gap:.5rem">
+              <!-- Voice input button -->
+              <button id="voice-btn" onclick="toggleVoice()" title="Voice input"
+                style="width:38px;height:38px;border-radius:50%;border:1.5px solid #d1d5db;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:all .2s">
+                🎤
+              </button>
               <input type="text" id="chat-input" placeholder="Type your question..." style="border-radius:9999px;flex:1" onkeydown="if(event.key==='Enter')sendChat()"/>
               <button class="btn btn-green" style="border-radius:9999px;padding:.625rem" onclick="sendChat()">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
@@ -951,16 +965,116 @@ function enableCompare(){
 // ============================================================
 //  Chatbot
 // ============================================================
-let chatMessages=[{role:'bot',text:'Namaste Admin! 👋\n\nAsk me about:\n• Food quantities per item (Dal, Chawal, Sabzi…)\n• Waste estimates per menu item\n• Weekend or exam adjustments\n\nExample: "Food for 120 students at lunch?"',source:'ai'}];
+function setInput(text){$('chat-input').value=text;}
+
+// ── Language toggle ──────────────────────────────────────────────────────
+let isHindi = false;
+const HINDI_CHIPS = [
+  ['🍱 120 छात्रों के लिए दोपहर का खाना', '120 students ke lunch ke liye kitna khana banana hai?'],
+  ['🌙 80 छात्रों के लिए रात का खाना', '80 students ke dinner ke liye kitna khana chahiye?'],
+  ['🗑️ बर्बादी का अनुमान', 'Aaj lunch mein kitna waste hoga?'],
+  ['📅 वीकेंड अनुमान', '90 students ke liye weekend pe kitna khana banana hai?'],
+  ['💰 लागत अनुमान', 'Lunch ke liye 100 students ka cost kya hoga?'],
+  ['📊 बर्बादी का ट्रेंड', 'Waste trend analysis dikhao'],
+];
+const EN_CHIPS = [
+  ['🍱 Lunch for 120', 'Food for 120 students at lunch?'],
+  ['🌙 Dinner for 80', 'How much food for 80 students at dinner?'],
+  ['🗑️ Waste at lunch', 'Waste estimate for 100 students at lunch?'],
+  ['📅 Weekend estimate', 'Food for 90 students on weekend?'],
+  ['💰 Cost estimate', 'Cost for 100 students at lunch?'],
+  ['📊 Waste trend', 'Show waste trend analysis'],
+];
+
+function toggleLang(){
+  isHindi=!isHindi;
+  const btn=$('lang-toggle');
+  const input=$('chat-input');
+  const chipRow=document.querySelector('.chip-row');
+  if(isHindi){
+    btn.textContent='🇬🇧 English';
+    btn.style.borderColor='#f59e0b';btn.style.color='#f59e0b';
+    input.placeholder='अपना सवाल टाइप करें...';
+    chipRow.innerHTML=HINDI_CHIPS.map(([label,val])=>
+      `<button class="chip" onclick="setInput('${val}')">${label}</button>`).join('');
+  } else {
+    btn.textContent='🇮🇳 हिंदी';
+    btn.style.borderColor='#1D9E75';btn.style.color='#1D9E75';
+    input.placeholder='Type your question...';
+    chipRow.innerHTML=EN_CHIPS.map(([label,val])=>
+      `<button class="chip" onclick="setInput('${val}')">${label}</button>`).join('');
+  }
+}
+
+// ── Voice Input ──────────────────────────────────────────────────────────
+let recognition=null;
+let isListening=false;
+
+function toggleVoice(){
+  const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SpeechRecognition){
+    showToast('Voice input not supported in this browser. Use Chrome!');
+    return;
+  }
+  if(isListening){
+    recognition.stop();
+    return;
+  }
+  recognition=new SpeechRecognition();
+  recognition.lang=isHindi?'hi-IN':'en-IN';
+  recognition.interimResults=false;
+  recognition.maxAlternatives=1;
+
+  const btn=$('voice-btn');
+  recognition.onstart=()=>{
+    isListening=true;
+    btn.style.background='#fee2e2';
+    btn.style.borderColor='#ef4444';
+    btn.textContent='🔴';
+    btn.title='Click to stop';
+  };
+  recognition.onresult=(e)=>{
+    const transcript=e.results[0][0].transcript;
+    $('chat-input').value=transcript;
+    sendChat();
+  };
+  recognition.onerror=(e)=>{
+    showToast('Voice error: '+e.error+'. Try again!');
+  };
+  recognition.onend=()=>{
+    isListening=false;
+    btn.style.background='#fff';
+    btn.style.borderColor='#d1d5db';
+    btn.textContent='🎤';
+    btn.title='Voice input';
+  };
+  recognition.start();
+}
+
+// ── Feedback ─────────────────────────────────────────────────────────────
+const feedbackData={};
+
+function submitFeedback(msgId, val){
+  feedbackData[msgId]=val;
+  const row=document.getElementById('fb-'+msgId);
+  if(row){
+    row.innerHTML=val===1
+      ?'<span style="font-size:.75rem;color:#1D9E75">👍 Thanks for the feedback!</span>'
+      :'<span style="font-size:.75rem;color:#ef4444">👎 We\'ll improve!</span>';
+  }
+}
+
+// ── Chat core ─────────────────────────────────────────────────────────────
+let chatMessages=[{role:'bot',text:'Namaste Admin! 👋\n\nAsk me about:\n• Food quantities per item (Dal, Chawal, Sabzi…)\n• Waste estimates per menu item\n• Cost estimation (₹ per meal)\n• Waste trends & history\n• Weekend or exam adjustments\n\nTip: Use 🎤 voice input or 🇮🇳 Hindi button above!',source:'ai'}];
+let chatHistory=[];
+let msgCounter=0;
 
 function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
 function formatBotText(text){
-  // Render newlines as <br>, and bold lines starting with emoji or "Total"
   return text.split('\n').map(line=>{
     const l=line.trim();
     if(!l)return '<br>';
-    // Item lines like "  • Dal: 8 kg" — render as a styled row
     if(l.startsWith('•')){
       const parts=l.replace('•','').split(':');
       if(parts.length>=2){
@@ -969,12 +1083,10 @@ function formatBotText(text){
         return `<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #e8f4ef;font-size:.82rem"><span style="color:#335348">${name}</span><span style="font-weight:600;color:#0f7a5a">${qty}</span></div>`;
       }
     }
-    // Header lines (contain 📋 or 🗑️)
-    if(l.includes('📋')||l.includes('🗑️')){
+    if(/^[📋🗑️💰📊✅💡📈📉]/u.test(l)){
       return `<div style="font-weight:700;margin:4px 0 6px;font-size:.85rem;color:#13291f">${escHtml(l)}</div>`;
     }
-    // Total lines
-    if(l.toLowerCase().startsWith('total')){
+    if(l.toLowerCase().startsWith('total')||l.toLowerCase().startsWith('per student')){
       return `<div style="font-weight:700;padding-top:5px;font-size:.83rem;color:#0d7c5f">${escHtml(l)}</div>`;
     }
     return `<div style="line-height:1.5;font-size:.85rem">${escHtml(l)}</div>`;
@@ -983,7 +1095,7 @@ function formatBotText(text){
 
 function renderChat(){
   const wrap=$('chat-messages');
-  wrap.innerHTML=chatMessages.map(m=>{
+  wrap.innerHTML=chatMessages.map((m,i)=>{
     if(m.role==='user'){
       return`<div style="display:flex;justify-content:flex-end"><div class="chat-bubble user" style="white-space:pre-wrap">${escHtml(m.text)}</div></div>`;
     }
@@ -996,9 +1108,14 @@ function renderChat(){
     }
     const badge=m.source==='ai'?'<span class="ai-badge">AI</span>':'<span class="rule-badge">RULE</span>';
     const mealTag=m.meal_slot&&m.meal_slot!=='Lunch'?`<span style="font-size:.7rem;background:#e8f4ef;color:#0b7055;padding:1px 7px;border-radius:99px;margin-left:4px">${escHtml(m.meal_slot)}</span>`:'';
-    return`<div style="display:flex;justify-content:flex-start"><div class="chat-bubble bot"><div style="display:flex;align-items:center;gap:4px;margin-bottom:6px">${badge}${mealTag}</div><div>${formatBotText(m.text)}</div></div></div>`;
+    // Feedback row — only for bot messages that are not the welcome message
+    const fbRow = i>0 ? `<div id="fb-${m.id}" style="display:flex;gap:6px;margin-top:6px;align-items:center">
+      <span style="font-size:.7rem;color:#9ca3af">Helpful?</span>
+      <button onclick="submitFeedback('${m.id}',1)" style="background:none;border:1px solid #d1d5db;border-radius:99px;padding:1px 8px;cursor:pointer;font-size:.75rem">👍</button>
+      <button onclick="submitFeedback('${m.id}',-1)" style="background:none;border:1px solid #d1d5db;border-radius:99px;padding:1px 8px;cursor:pointer;font-size:.75rem">👎</button>
+    </div>` : '';
+    return`<div style="display:flex;justify-content:flex-start"><div class="chat-bubble bot"><div style="display:flex;align-items:center;gap:4px;margin-bottom:6px">${badge}${mealTag}</div><div>${formatBotText(m.text)}</div>${fbRow}</div></div>`;
   }).join('');
-  // inject keyframe if not present
   if(!document.getElementById('tdot-style')){
     const s=document.createElement('style');s.id='tdot-style';
     s.textContent='@keyframes tdot{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}}';
@@ -1006,8 +1123,6 @@ function renderChat(){
   }
   wrap.scrollTop=wrap.scrollHeight;
 }
-
-function setInput(text){$('chat-input').value=text;}
 
 async function sendChat(){
   const msg=$('chat-input').value.trim();
@@ -1017,17 +1132,22 @@ async function sendChat(){
   chatMessages.push({role:'bot',text:'',source:'rule',_typing:true});
   renderChat();
   try{
-    const r=await postJSON('/api/chatbot',{message:msg});
+    const r=await postJSON('/api/chatbot',{message:msg,history:chatHistory,lang:isHindi?'hi':'en'});
     chatMessages=chatMessages.filter(m=>!m._typing);
-    chatMessages.push({role:'bot',text:r.reply||'No response.',source:r.source||'rule',meal_slot:r.meal_slot||''});
+    const botReply=r.reply||'No response.';
+    const msgId='m'+(++msgCounter);
+    chatMessages.push({role:'bot',text:botReply,source:r.source||'rule',meal_slot:r.meal_slot||'',id:msgId});
+    chatHistory.push({role:'user',content:msg});
+    chatHistory.push({role:'model',content:botReply});
+    if(chatHistory.length>20)chatHistory=chatHistory.slice(-20);
   }catch{
     chatMessages=chatMessages.filter(m=>!m._typing);
-    chatMessages.push({role:'bot',text:'Unable to get a response. Please try again.',source:'rule'});
+    chatMessages.push({role:'bot',text:'Unable to get a response. Please try again.',source:'rule',id:'err'+(++msgCounter)});
   }
   renderChat();
 }
 
-function clearChat(){chatMessages=[];renderChat();}
+function clearChat(){chatMessages=[];chatHistory=[];msgCounter=0;renderChat();}
 
 // ============================================================
 //  Finalize modal

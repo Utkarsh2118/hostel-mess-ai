@@ -451,7 +451,8 @@ def format_waste_breakdown(items: list[dict], meal_name: str, students: int) -> 
     lines = [f"🗑️ Estimated waste for {students} students — {meal_name}:\n"]
     for item in items:
         lines.append(f"  • {item['name']}: ~{item['waste_kg']} kg")
-    total = sum(i["waste_kg"] for i in items)
+    total = sum(i["waste_kg"] for i in items)  
+
     lines.append(f"\n  Total waste: {round(total, 2)} kg")
     return "\n".join(lines)
 
