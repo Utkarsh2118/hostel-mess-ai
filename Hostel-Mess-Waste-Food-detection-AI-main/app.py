@@ -451,8 +451,7 @@ def format_waste_breakdown(items: list[dict], meal_name: str, students: int) -> 
     lines = [f"🗑️ Estimated waste for {students} students — {meal_name}:\n"]
     for item in items:
         lines.append(f"  • {item['name']}: ~{item['waste_kg']} kg")
-    total = sum(i["waste_kg"] for i in items)  
-
+    total = sum(i["waste_kg"] for i in items)
     lines.append(f"\n  Total waste: {round(total, 2)} kg")
     return "\n".join(lines)
 
@@ -1715,19 +1714,102 @@ def api_predict_by_meal():
 
     df = load_dataset(DATASET_PATH)
     trained = train_waste_model(df)
+    menu_data = load_menu()
+
     base_waste = float(predict_waste(trained["model"], students_present, is_weekend, is_exam_period))
     base_food = float(suggested_food_quantity(df, students_present))
     multiplier = float(MEAL_FORECAST_MULTIPLIERS[meal_slot])
 
-    return jsonify(
-        {
-            "meal_slot": meal_slot,
-            "predicted_waste": round(base_waste * multiplier, 2),
-            "suggested_food": round(base_food * multiplier, 2),
-            "multiplier": multiplier,
-            "r2": trained["r2"],
+    meal_waste = round(base_waste * multiplier, 2)
+    meal_food = round(base_food * multiplier, 2)
+    r2 = float(trained.get("r2", 0))
+
+    # Confidence level
+    conf = max(5, min(99, round(r2 * 100)))
+    if conf >= 75:
+        conf_label = "High"
+        conf_color = "#16a34a"
+    elif conf >= 45:
+        conf_label = "Medium"
+        conf_color = "#d97706"
+    else:
+        conf_label = "Low"
+        conf_color = "#dc2626"
+
+    # Item-wise breakdown from menu
+    menu_str = ""
+    if menu_data and menu_data.get("menus"):
+        menu_str = menu_data["menus"].get(meal_slot, "")
+    food_items = breakdown_food_by_menu(menu_str, meal_food, students_present) if menu_str else []
+    waste_items = breakdown_waste_by_menu(menu_str, meal_waste) if menu_str else []
+
+    # Cost estimate
+    cost_data = estimate_cost(food_items) if food_items else {"items": [], "total": round(meal_food * 60, 2)}
+    per_student_cost = round(cost_data["total"] / students_present, 2) if students_present else 0
+
+    # Smart recommendation
+    waste_pct = round((meal_waste / meal_food * 100), 1) if meal_food else 0
+    if waste_pct > 18:
+        rec_type = "reduce"
+        rec_pct = min(15, round(waste_pct - 12))
+        rec_food = round(meal_food * (1 - rec_pct / 100), 2)
+        recommendation = {
+            "type": "reduce",
+            "icon": "📉",
+            "color": "#dc2626",
+            "bg": "#fef2f2",
+            "text": f"Waste is {waste_pct}% of food prepared — reduce preparation by {rec_pct}% to ~{rec_food} kg to cut waste.",
         }
-    )
+    elif waste_pct < 5:
+        rec_pct = 5
+        rec_food = round(meal_food * 1.05, 2)
+        recommendation = {
+            "type": "increase",
+            "icon": "📈",
+            "color": "#2563eb",
+            "bg": "#eff6ff",
+            "text": f"Very low waste ({waste_pct}%) — you may be under-preparing. Consider adding ~{rec_pct}% more ({rec_food} kg) as buffer.",
+        }
+    else:
+        recommendation = {
+            "type": "optimal",
+            "icon": "✅",
+            "color": "#16a34a",
+            "bg": "#f0fdf4",
+            "text": f"Waste is {waste_pct}% — within optimal range (5-18%). Current preparation plan looks good!",
+        }
+
+    # What-if scenarios
+    whatif = []
+    for label, w, e, desc in [
+        ("Normal Day", 0, 0, "Regular weekday"),
+        ("Weekend", 1, 0, "15-20% lower attendance"),
+        ("Exam Period", 0, 1, "Irregular eating patterns"),
+        ("Weekend + Exam", 1, 1, "Both factors combined"),
+    ]:
+        ww = round(predict_waste(trained["model"], students_present, w, e) * multiplier, 2)
+        wf = round(suggested_food_quantity(df, students_present) * multiplier, 2)
+        whatif.append({"label": label, "waste_kg": ww, "food_kg": wf, "desc": desc,
+                        "active": (w == is_weekend and e == is_exam_period)})
+
+    return jsonify({
+        "meal_slot": meal_slot,
+        "predicted_waste": meal_waste,
+        "suggested_food": meal_food,
+        "multiplier": multiplier,
+        "r2": r2,
+        "confidence": conf,
+        "confidence_label": conf_label,
+        "confidence_color": conf_color,
+        "waste_percentage": waste_pct,
+        "food_items": food_items,
+        "waste_items": waste_items,
+        "cost": cost_data,
+        "per_student_cost": per_student_cost,
+        "recommendation": recommendation,
+        "whatif": whatif,
+        "menu": menu_str,
+    })
 
 
 @app.route("/api/chatbot", methods=["POST"])
@@ -1845,6 +1927,162 @@ def api_chatbot():
         "meal_slot": meal_slot,
         "fallback_reason": chatbot_fallback_reason(ai_error) if ai_error and source == "rule" else None,
     })
+
+
+# ══════════════════════════════════════════════════════════════
+#  PHASE 3 — Smart Alerts, Daily Summary, Waste Alert
+# ══════════════════════════════════════════════════════════════
+
+WASTE_ALERT_THRESHOLD = float(os.getenv("WASTE_ALERT_THRESHOLD", "10.0"))  # kg
+
+
+def generate_smart_alerts(df: pd.DataFrame, trained: dict, menu_data: dict | None) -> list[dict]:
+    """Generate contextual alerts based on current data, day, and predictions."""
+    alerts = []
+    now = datetime.now()
+    weekday = now.weekday()  # 0=Mon, 6=Sun
+    is_weekend = weekday >= 5
+
+    latest_students = int(df["students_present"].iloc[-1]) if not df.empty else 100
+    predicted_waste = predict_waste(trained["model"], latest_students, int(is_weekend), 0)
+    food_kg = suggested_food_quantity(df, latest_students)
+
+    # Weekend alert
+    if is_weekend:
+        alerts.append({
+            "type": "warning",
+            "icon": "📅",
+            "title": "Weekend — Lower Attendance Expected",
+            "message": f"Attendance typically drops 15-20% on weekends. "
+                       f"Consider preparing ~{round(food_kg * 0.82, 1)} kg instead of {round(food_kg, 1)} kg.",
+        })
+
+    # High waste alert
+    if predicted_waste > WASTE_ALERT_THRESHOLD:
+        alerts.append({
+            "type": "danger",
+            "icon": "⚠️",
+            "title": "High Waste Predicted Today",
+            "message": f"Predicted waste is {predicted_waste} kg — above threshold of {WASTE_ALERT_THRESHOLD} kg. "
+                       f"Consider reducing food preparation by 8-10%.",
+        })
+
+    # Trend alert — if waste increasing
+    if not df.empty and len(df) >= 6:
+        half = len(df) // 2
+        recent_avg = float(df.iloc[half:]["waste_kg"].mean())
+        old_avg = float(df.iloc[:half]["waste_kg"].mean())
+        if recent_avg > old_avg * 1.15:
+            pct = round((recent_avg - old_avg) / old_avg * 100, 1)
+            alerts.append({
+                "type": "warning",
+                "icon": "📈",
+                "title": "Waste Trend Increasing",
+                "message": f"Waste has increased by {pct}% recently (avg {round(recent_avg,2)} kg vs {round(old_avg,2)} kg before). "
+                           f"Review portion sizes.",
+            })
+        elif recent_avg < old_avg * 0.90:
+            pct = round((old_avg - recent_avg) / old_avg * 100, 1)
+            alerts.append({
+                "type": "success",
+                "icon": "📉",
+                "title": "Waste Reducing — Great Work!",
+                "message": f"Waste has reduced by {pct}% recently. Keep it up!",
+            })
+
+    # Monday alert — start of week planning
+    if weekday == 0:
+        alerts.append({
+            "type": "info",
+            "icon": "🗓️",
+            "title": "New Week — Plan Ahead",
+            "message": "It's Monday! Good time to review last week's waste data and plan portions for the week.",
+        })
+
+    # Low data alert
+    if df.empty or len(df) < 5:
+        alerts.append({
+            "type": "info",
+            "icon": "📊",
+            "title": "Not Enough Data for Predictions",
+            "message": "Add more daily records (at least 5) to get accurate waste predictions.",
+        })
+
+    return alerts
+
+
+def generate_daily_summary(df: pd.DataFrame, trained: dict, menu_data: dict | None) -> dict:
+    """Generate a daily morning summary report."""
+    now = datetime.now()
+    today_str = now.strftime("%A, %d %B %Y")
+    weekday = now.weekday()
+    is_weekend = weekday >= 5
+
+    latest_students = int(df["students_present"].iloc[-1]) if not df.empty else 100
+
+    # Predict for each meal
+    meal_predictions = []
+    for mw in MEAL_WINDOWS:
+        meal = mw["meal"]
+        multiplier = MEAL_FORECAST_MULTIPLIERS.get(meal, 1.0)
+        students = max(1, round(latest_students * (0.82 if is_weekend else 1.0)))
+        waste = round(predict_waste(trained["model"], students, int(is_weekend), 0) * multiplier, 2)
+        food = round(suggested_food_quantity(df, students) * multiplier, 2)
+        menu_str = ""
+        if menu_data and menu_data.get("menus"):
+            menu_str = menu_data["menus"].get(meal, "")
+        items = breakdown_food_by_menu(menu_str, food, students) if menu_str else []
+        meal_predictions.append({
+            "meal": meal,
+            "students": students,
+            "food_kg": food,
+            "waste_kg": waste,
+            "items": items,
+            "menu": menu_str,
+        })
+
+    # Weekly trend
+    trend = get_trend_analysis(df)
+    history = get_waste_history(df, days=min(7, len(df)))
+
+    total_food = round(sum(m["food_kg"] for m in meal_predictions), 2)
+    total_waste = round(sum(m["waste_kg"] for m in meal_predictions), 2)
+
+    return {
+        "date": today_str,
+        "is_weekend": is_weekend,
+        "expected_students": latest_students,
+        "total_food_kg": total_food,
+        "total_waste_kg": total_waste,
+        "meal_predictions": meal_predictions,
+        "trend_summary": trend,
+        "history_summary": history,
+        "generated_at": now.strftime("%I:%M %p"),
+    }
+
+
+@app.route("/api/alerts", methods=["GET"])
+def api_alerts():
+    """Return smart alerts for the admin dashboard."""
+    if not admin_required():
+        return jsonify({"error": "Unauthorized"}), 401
+    df = load_dataset(DATASET_PATH)
+    trained = train_waste_model(df)
+    menu_data = load_menu()
+    alerts = generate_smart_alerts(df, trained, menu_data)
+    return jsonify({"alerts": alerts, "count": len(alerts)})
+
+
+@app.route("/api/daily-summary", methods=["GET"])
+def api_daily_summary():
+    """Return full daily morning summary."""
+    if not admin_required():
+        return jsonify({"error": "Unauthorized"}), 401
+    df = load_dataset(DATASET_PATH)
+    trained = train_waste_model(df)
+    menu_data = load_menu()
+    summary = generate_daily_summary(df, trained, menu_data)
+    return jsonify(summary)
 
 
 @app.route("/api/student/menu-feedback", methods=["POST"])
