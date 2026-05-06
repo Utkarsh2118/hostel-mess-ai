@@ -16,7 +16,15 @@ from dotenv import load_dotenv
 from flask import Flask, jsonify, redirect, render_template, request, session, url_for
 import qrcode
 
-from model import load_dataset, predict_waste, suggested_food_quantity, train_waste_model
+from model import (
+    load_dataset,
+    predict_waste,
+    suggested_food_quantity,
+    train_waste_model,
+    prediction_confidence_interval,
+    find_similar_scenarios,
+    out_of_range_warnings,
+)
 
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / ".env")
@@ -1678,7 +1686,16 @@ def api_predict():
         return jsonify({"error": "Unauthorized"}), 401
 
     data = request.get_json(silent=True) or request.form
-    students_present = int(float(data.get("students_present", 0)))
+    try:
+        students_present = int(float(data.get("students_present", 0)))
+    except (TypeError, ValueError):
+        return jsonify({"error": "Invalid students_present value."}), 400
+
+    if students_present <= 0:
+        return jsonify({"error": "students_present must be a positive integer."}), 400
+    if students_present > 10000:
+        return jsonify({"error": "students_present value is unrealistically large."}), 400
+
     is_weekend = parse_bool(data.get("is_weekend", 0))
     is_exam_period = parse_bool(data.get("is_exam_period", 0))
 
@@ -1690,11 +1707,21 @@ def api_predict():
     )
     suggested_food = suggested_food_quantity(df, students_present)
 
+    ci = prediction_confidence_interval(trained, predicted_waste, students_present)
+    similar = find_similar_scenarios(df, students_present, is_weekend, is_exam_period)
+    warnings = out_of_range_warnings(df, predicted_waste, suggested_food, students_present)
+
     return jsonify(
         {
             "predicted_waste": predicted_waste,
             "suggested_food": suggested_food,
             "r2": trained["r2"],
+            "rmse": trained.get("rmse", 0.0),
+            "mae": trained.get("mae", 0.0),
+            "sample_size": trained.get("sample_size", 0),
+            "confidence_interval": ci,
+            "similar_scenarios": similar,
+            "warnings": warnings,
         }
     )
 
@@ -1705,7 +1732,14 @@ def api_predict_by_meal():
         return jsonify({"error": "Unauthorized"}), 401
 
     data = request.get_json(silent=True) or request.form
-    students_present = int(float(data.get("students_present", 0)))
+    try:
+        students_present = int(float(data.get("students_present", 0)))
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "message": "Invalid students_present value."}), 400
+
+    if students_present <= 0:
+        return jsonify({"success": False, "message": "students_present must be a positive integer."}), 400
+
     is_weekend = parse_bool(data.get("is_weekend", 0))
     is_exam_period = parse_bool(data.get("is_exam_period", 0))
     meal_slot = str(data.get("meal_slot", "Lunch")).strip() or "Lunch"
@@ -1719,13 +1753,42 @@ def api_predict_by_meal():
     base_food = float(suggested_food_quantity(df, students_present))
     multiplier = float(MEAL_FORECAST_MULTIPLIERS[meal_slot])
 
+    predicted_waste = round(base_waste * multiplier, 2)
+    suggested_food = round(base_food * multiplier, 2)
+
+    # Item-wise food breakdown from current menu
+    menu_data = load_menu()
+    menu_str = menu_data.get("menus", {}).get(meal_slot, "")
+    food_items = breakdown_food_by_menu(menu_str, suggested_food, students_present) if menu_str else []
+    waste_items = breakdown_waste_by_menu(menu_str, predicted_waste) if menu_str else []
+    cost_data = estimate_cost(food_items) if food_items else {"items": [], "total": 0.0}
+
+    # Confidence interval scaled by meal multiplier
+    ci_base = prediction_confidence_interval(trained, base_waste, students_present)
+    ci = {
+        "low": round(ci_base["low"] * multiplier, 2),
+        "high": round(ci_base["high"] * multiplier, 2),
+        "confidence_pct": ci_base["confidence_pct"],
+        "interpretation": ci_base["interpretation"],
+    }
+
+    warnings = out_of_range_warnings(df, predicted_waste, suggested_food, students_present)
+
     return jsonify(
         {
             "meal_slot": meal_slot,
-            "predicted_waste": round(base_waste * multiplier, 2),
-            "suggested_food": round(base_food * multiplier, 2),
+            "predicted_waste": predicted_waste,
+            "suggested_food": suggested_food,
             "multiplier": multiplier,
             "r2": trained["r2"],
+            "rmse": trained.get("rmse", 0.0),
+            "mae": trained.get("mae", 0.0),
+            "sample_size": trained.get("sample_size", 0),
+            "food_items": food_items,
+            "waste_items": waste_items,
+            "cost_estimate": cost_data,
+            "confidence_interval": ci,
+            "warnings": warnings,
         }
     )
 
