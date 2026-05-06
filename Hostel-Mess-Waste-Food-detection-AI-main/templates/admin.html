@@ -109,11 +109,13 @@ input.err{border-color:#e11d48}
 .btn-pill{border-radius:9999px}
 
 /* -------- toggle -------- */
-.toggle{position:relative;display:inline-flex;height:2.25rem;width:5rem;align-items:center;border-radius:9999px;border:1px solid;cursor:pointer;background:var(--sl-200);border-color:var(--sl-300);transition:all .2s}
-.toggle.on{background:#059669;border-color:#059669}
-.toggle-knob{position:absolute;left:.25rem;height:1.75rem;width:1.75rem;border-radius:9999px;background:#fff;transition:transform .2s;box-shadow:0 1px 4px rgba(0,0,0,.15)}
-.toggle.on .toggle-knob{transform:translateX(2.75rem)}
-.toggle-label{width:100%;text-align:center;font-size:.75rem;font-weight:700;color:#fff;position:relative;z-index:1}
+.toggle{position:relative;display:inline-flex;height:2rem;width:4.5rem;align-items:center;border-radius:9999px;border:2px solid;cursor:pointer;background:var(--sl-200);border-color:var(--sl-300);transition:background .25s,border-color .25s;outline:none;padding:0}
+.toggle:focus-visible{box-shadow:0 0 0 3px rgba(5,150,105,.35)}
+.toggle.on{background:#059669;border-color:#047857}
+.toggle-knob{position:absolute;left:.2rem;height:1.4rem;width:1.4rem;border-radius:9999px;background:#fff;transition:transform .25s cubic-bezier(.4,0,.2,1);box-shadow:0 1px 4px rgba(0,0,0,.2)}
+.toggle.on .toggle-knob{transform:translateX(2.3rem)}
+.toggle-label{width:100%;text-align:center;font-size:.7rem;font-weight:700;color:#fff;position:relative;z-index:1;letter-spacing:.02em;padding-left:.2rem}
+.toggle:not(.on) .toggle-label{color:var(--sl-500)}
 
 /* -------- table -------- */
 .tbl-wrap{overflow-x:auto}
@@ -150,6 +152,28 @@ td:last-child{border-radius:0 .75rem .75rem 0}
 .conf-high{background:#059669}
 .conf-mid{background:#f59e0b}
 .conf-low{background:#e11d48}
+
+/* -------- skeleton loader -------- */
+@keyframes shimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}
+.skeleton{background:linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%);background-size:400px 100%;animation:shimmer 1.2s infinite;border-radius:.5rem}
+
+/* -------- student slider -------- */
+.stu-slider{width:100%;accent-color:#16a34a;margin:.5rem 0}
+
+/* -------- sticky predict btn (mobile) -------- */
+@media(max-width:768px){
+  .sticky-pred-wrap{position:sticky;bottom:0;background:#f9fafb;padding:.75rem 0 .5rem;margin-top:.5rem;z-index:10}
+}
+
+/* -------- prediction history -------- */
+.hist-row{display:flex;align-items:center;justify-content:space-between;padding:.5rem .75rem;border-radius:.75rem;background:#f8fafc;margin-bottom:.4rem;font-size:.8rem;cursor:pointer;border:1px solid var(--sl-200);transition:background .12s}
+.hist-row:hover{background:#f0fdf4;border-color:#86efac}
+.hist-badge{border-radius:9999px;padding:.15rem .6rem;font-size:.7rem;font-weight:700}
+
+/* -------- export buttons -------- */
+.export-row{display:flex;gap:.5rem;margin-top:.75rem}
+.btn-xs{padding:.35rem .75rem;font-size:.75rem;font-weight:700;border-radius:.65rem;border:1px solid var(--sl-300);background:#fff;color:var(--sl-700);cursor:pointer;display:inline-flex;align-items:center;gap:.35rem;font-family:var(--font)}
+.btn-xs:hover{border-color:#059669;color:#047857}
 
 /* -------- modal -------- */
 .modal-backdrop{position:fixed;inset:0;z-index:40;background:rgba(15,23,42,.4);display:grid;place-items:center;padding:1rem}
@@ -474,19 +498,23 @@ td:last-child{border-radius:0 .75rem .75rem 0}
               </div>
               <div class="admin-card" style="background:#fff;padding:1rem" id="scenario-a">
                 <label class="lbl">Students Present</label>
-                <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:1rem">
+                <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem">
                   <button class="btn btn-em-outline" onclick="adjStudents('a',-1)" style="padding:.5rem .875rem">−</button>
-                  <input type="number" id="pred-stu-a" value="120" style="text-align:center"/>
+                  <input type="number" id="pred-stu-a" value="120" min="60" max="200" style="text-align:center" onkeydown="if(event.key==='Enter')predict('a')" oninput="syncSlider('a',this.value)"/>
                   <button class="btn btn-em-outline" onclick="adjStudents('a',1)" style="padding:.5rem .875rem">+</button>
                 </div>
+                <input type="range" id="pred-slider-a" min="60" max="200" value="120" class="stu-slider" oninput="syncInput('a',this.value)"/>
+                <div style="display:flex;justify-content:space-between;font-size:.7rem;color:var(--sl-500);margin-bottom:.75rem"><span>60</span><span>200</span></div>
                 <div class="grid-2" style="margin-bottom:1rem">
                   <div><p class="lbl">Weekend</p><button class="toggle" id="tog-pred-weekend-a" onclick="togglePredTog('weekend-a')"><span class="toggle-knob"></span><span class="toggle-label">No</span></button></div>
                   <div><p class="lbl">Exam Period</p><button class="toggle" id="tog-pred-exam-a" onclick="togglePredTog('exam-a')"><span class="toggle-knob"></span><span class="toggle-label">No</span></button></div>
                 </div>
+                <div class="sticky-pred-wrap">
                 <button class="btn btn-green btn-full" id="pred-btn-a" onclick="predict('a')">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2v6l2 2-2 2v6"/><path d="M18 2v6l-2 2 2 2v6"/><path d="M6 12h12"/></svg>
                   Predict Waste
                 </button>
+                </div>
               </div>
               <div id="pred-result-a" class="hidden admin-card" style="background:#fff;padding:1rem"></div>
             </div>
@@ -500,25 +528,38 @@ td:last-child{border-radius:0 .75rem .75rem 0}
               </div>
               <div class="admin-card" style="background:#fff;padding:1rem">
                 <label class="lbl">Students Present</label>
-                <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:1rem">
+                <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem">
                   <button class="btn btn-em-outline" onclick="adjStudents('b',-1)" style="padding:.5rem .875rem">−</button>
-                  <input type="number" id="pred-stu-b" value="120" style="text-align:center"/>
+                  <input type="number" id="pred-stu-b" value="120" min="60" max="200" style="text-align:center" onkeydown="if(event.key==='Enter')predict('b')" oninput="syncSlider('b',this.value)"/>
                   <button class="btn btn-em-outline" onclick="adjStudents('b',1)" style="padding:.5rem .875rem">+</button>
                 </div>
+                <input type="range" id="pred-slider-b" min="60" max="200" value="120" class="stu-slider" oninput="syncInput('b',this.value)"/>
+                <div style="display:flex;justify-content:space-between;font-size:.7rem;color:var(--sl-500);margin-bottom:.75rem"><span>60</span><span>200</span></div>
                 <div class="grid-2" style="margin-bottom:1rem">
-                  <div><p class="lbl">Weekend</p><button class="toggle on" id="tog-pred-weekend-b" onclick="togglePredTog('weekend-b')"><span class="toggle-knob" style="transform:translateX(2.75rem)"></span><span class="toggle-label">Yes</span></button></div>
+                  <div><p class="lbl">Weekend</p><button class="toggle on" id="tog-pred-weekend-b" onclick="togglePredTog('weekend-b')"><span class="toggle-knob"></span><span class="toggle-label">Yes</span></button></div>
                   <div><p class="lbl">Exam Period</p><button class="toggle" id="tog-pred-exam-b" onclick="togglePredTog('exam-b')"><span class="toggle-knob"></span><span class="toggle-label">No</span></button></div>
                 </div>
+                <div class="sticky-pred-wrap">
                 <button class="btn btn-green btn-full" id="pred-btn-b" onclick="predict('b')">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2v6l2 2-2 2v6"/><path d="M18 2v6l-2 2 2 2v6"/><path d="M6 12h12"/></svg>
                   Predict Waste
                 </button>
+                </div>
               </div>
               <div id="pred-result-b" class="hidden admin-card" style="background:#fff;padding:1rem"></div>
             </div>
           </div>
 
           <button class="btn btn-em-outline btn-pill" id="compare-btn" onclick="enableCompare()">Compare Another Scenario</button>
+
+          <!-- Prediction History -->
+          <div id="pred-history-panel" class="hidden">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem">
+              <span style="font-size:.8rem;font-weight:700;color:var(--sl-700)">🕐 Recent Predictions</span>
+              <button class="btn-xs" onclick="clearPredHistory()">Clear</button>
+            </div>
+            <div id="pred-history-list"></div>
+          </div>
         </div>
       </div>
       <div class="page" id="page-chatbot">
@@ -670,6 +711,8 @@ function togglePredTog(which){
 function applyTog(id,val){
   const el=$(id);
   if(!el)return;
+  const knob=el.querySelector('.toggle-knob');
+  if(knob)knob.style.transform=''; // clear inline style — CSS .toggle.on handles movement
   if(val){el.classList.add('on');el.querySelector('.toggle-label').textContent='Yes';}
   else{el.classList.remove('on');el.querySelector('.toggle-label').textContent='No';}
 }
@@ -926,7 +969,9 @@ async function confirmDelete(id){
 function adjStudents(which,delta){
   const id=`pred-stu-${which}`;
   const el=$(id);
-  el.value=Math.max(1,+(el.value||0)+delta);
+  const newVal=Math.max(60,Math.min(200,+(el.value||120)+delta));
+  el.value=newVal;
+  syncSlider(which,newVal);
 }
 
 function togglePredTog(which){
@@ -1262,14 +1307,104 @@ function autoDetectMeal(){
   showToast(`Auto-detected: ${meal}${isWknd?' (Weekend)':''}`);
 }
 
-// Rich predict function
+// ── Slider sync helpers ──────────────────────────────────────────
+function syncSlider(which,val){const s=$(`pred-slider-${which}`);if(s)s.value=val;}
+function syncInput(which,val){const inp=$(`pred-stu-${which}`);if(inp)inp.value=val;}
+
+// ── Prediction history (localStorage) ───────────────────────────
+const HIST_KEY='messai_pred_history';
+function loadPredHistory(){
+  try{return JSON.parse(localStorage.getItem(HIST_KEY)||'[]');}catch{return[];}
+}
+function savePredEntry(entry){
+  const hist=loadPredHistory();
+  hist.unshift(entry);
+  localStorage.setItem(HIST_KEY,JSON.stringify(hist.slice(0,5)));
+  renderPredHistory();
+}
+function renderPredHistory(){
+  const hist=loadPredHistory();
+  const panel=$('pred-history-panel');
+  const list=$('pred-history-list');
+  if(!hist.length){panel.classList.add('hidden');return;}
+  panel.classList.remove('hidden');
+  list.innerHTML=hist.map((h,i)=>{
+    const wc=h.wp>18?'#dc2626':h.wp<5?'#2563eb':'#16a34a';
+    const wbg=h.wp>18?'#fef2f2':h.wp<5?'#eff6ff':'#f0fdf4';
+    return`<div class="hist-row" onclick="replayHistory(${i})" title="Click to reload this scenario">
+      <div style="display:flex;flex-direction:column;gap:2px">
+        <span style="font-weight:700;color:#0f172a">${h.meal} · ${h.stu} students</span>
+        <span style="font-size:.72rem;color:var(--sl-500)">${h.time}${h.weekend?' · Weekend':''}${h.exam?' · Exam':''}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:.5rem">
+        <span class="hist-badge" style="background:${wbg};color:${wc}">${h.waste} kg waste</span>
+        <span style="font-size:.72rem;color:var(--sl-500)">${h.food} kg food</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+function replayHistory(idx){
+  const h=loadPredHistory()[idx];
+  if(!h)return;
+  $('pred-meal-a').value=h.meal;
+  $('pred-stu-a').value=h.stu;
+  syncSlider('a',h.stu);
+  showToast('Scenario restored — click Predict Waste to re-run');
+}
+function clearPredHistory(){
+  localStorage.removeItem(HIST_KEY);
+  renderPredHistory();
+}
+
+// ── Export helpers ───────────────────────────────────────────────
+function copyFoodPlan(which){
+  const el=$(`pred-result-${which}`);
+  if(!el)return;
+  const rows=el.querySelectorAll('[data-food-item]');
+  if(!rows.length){showToast('No plan to copy');return;}
+  let text='Food Preparation Plan\n'+'─'.repeat(28)+'\n';
+  rows.forEach(r=>text+=r.dataset.foodItem+'\n');
+  navigator.clipboard.writeText(text).then(()=>showToast('Copied to clipboard ✓')).catch(()=>showToast('Copy failed'));
+}
+function printFoodPlan(which){
+  const el=$(`pred-result-${which}`);
+  if(!el){return;}
+  const w=window.open('','_blank','width=600,height=700');
+  w.document.write(`<html><head><title>Food Prep Plan</title>
+    <style>body{font-family:sans-serif;padding:2rem;color:#0f172a}h2{font-size:1.1rem;margin-bottom:1rem}
+    table{width:100%;border-collapse:collapse;font-size:.9rem}td{padding:6px 8px;border-bottom:1px solid #e2e8f0}
+    .total{font-weight:700;border-top:2px solid #cbd5e1}</style></head><body>
+    <h2>📋 Food Preparation Plan</h2>${el.querySelector('[data-plan-print]')?.innerHTML||el.innerHTML}
+    <script>window.onload=()=>{window.print();window.close();}<\/script></body></html>`);
+  w.document.close();
+}
+
+// ── Skeleton loader ──────────────────────────────────────────────
+function showSkeleton(which){
+  const el=$(`pred-result-${which}`);
+  el.innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem">
+      <div class="skeleton" style="height:5rem;border-radius:.75rem"></div>
+      <div class="skeleton" style="height:5rem;border-radius:.75rem"></div>
+    </div>
+    <div class="skeleton" style="height:.5rem;border-radius:9999px;margin-bottom:.75rem"></div>
+    <div class="skeleton" style="height:1.5rem;border-radius:.5rem;margin-bottom:.4rem;width:60%"></div>
+    <div class="skeleton" style="height:1rem;border-radius:.5rem;margin-bottom:.3rem"></div>
+    <div class="skeleton" style="height:1rem;border-radius:.5rem;margin-bottom:.3rem;width:80%"></div>
+    <div class="skeleton" style="height:1rem;border-radius:.5rem;width:70%"></div>`;
+  el.classList.remove('hidden');
+}
+
+// ── Rich predict function ────────────────────────────────────────
 async function predict(which){
   const stu=+$(`pred-stu-${which}`).value||120;
   const meal=$(`pred-meal-${which}`).value;
   const weekend=appState[which==='a'?'togPredWeekendA':'togPredWeekendB'];
   const exam=appState[which==='a'?'togPredExamA':'togPredExamB'];
   const btnId=`pred-btn-${which}`;
-  $(btnId).textContent='Predicting...';$(btnId).disabled=true;
+  $(btnId).innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2v6l2 2-2 2v6"/><path d="M18 2v6l-2 2 2 2v6"/><path d="M6 12h12"/></svg> Predicting...';
+  $(btnId).disabled=true;
+  showSkeleton(which);
   try{
     const mp=await postJSON('/api/predict/meal',{
       students_present:stu,is_weekend:weekend?1:0,is_exam_period:exam?1:0,meal_slot:meal
@@ -1278,19 +1413,35 @@ async function predict(which){
     const wasteColor=wasteHigh?'#dc2626':wasteLow?'#2563eb':'#16a34a';
     const wasteBg=wasteHigh?'#fef2f2':wasteLow?'#eff6ff':'#f0fdf4';
 
+    // Save to history
+    savePredEntry({meal,stu,waste:mp.predicted_waste,food:mp.suggested_food,wp:mp.waste_percentage,weekend:!!weekend,exam:!!exam,time:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})});
+
+    let foodPlanRows='';
     let itemsHtml='';
     if(mp.food_items&&mp.food_items.length>0){
-      itemsHtml=`<div style="margin-top:1rem">
+      foodPlanRows=mp.food_items.map(item=>{
+        const qty=item.litres?`${item.litres} L`:item.pieces?`${item.pieces} pcs (${item.kg}kg)`:`${item.kg} kg`;
+        return`${item.name}: ${qty}`;
+      }).join('\n')+'Total Food: '+mp.suggested_food+' kg';
+
+      itemsHtml=`<div style="margin-top:1rem" data-plan-print>
         <div style="font-weight:700;font-size:.85rem;margin-bottom:.5rem;color:#1e293b">📋 Food Preparation Plan</div>
+        <table style="width:100%;border-collapse:collapse">
         ${mp.food_items.map(item=>{
           const qty=item.litres?`<span style="color:#2563eb;font-weight:700">${item.litres} L</span>`
                    :item.pieces?`<span style="font-weight:700">${item.pieces} pcs <span style="color:#94a3b8;font-size:.78rem">(${item.kg}kg)</span></span>`
                    :`<span style="font-weight:700">${item.kg} kg</span>`;
-          return`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f1f5f9;font-size:.82rem">
-            <span style="color:#475569">${item.name}</span>${qty}</div>`;
+          return`<tr data-food-item="${item.name}: ${item.kg||item.litres||item.pieces} ${item.litres?'L':item.pieces?'pcs':'kg'}">
+            <td style="padding:4px 0;border-bottom:1px solid #f1f5f9;font-size:.82rem;color:#475569">${item.name}</td>
+            <td style="padding:4px 0;border-bottom:1px solid #f1f5f9;font-size:.82rem;text-align:right">${qty}</td></tr>`;
         }).join('')}
-        <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:.83rem;font-weight:700;color:#0f172a;border-top:2px solid #e2e8f0;margin-top:2px">
-          <span>Total Food</span><span>${mp.suggested_food} kg</span></div>
+        <tr class="total-row"><td style="padding:5px 0;font-size:.83rem;font-weight:700;color:#0f172a;border-top:2px solid #e2e8f0">Total Food</td>
+          <td style="padding:5px 0;font-size:.83rem;font-weight:700;color:#0f172a;border-top:2px solid #e2e8f0;text-align:right">${mp.suggested_food} kg</td></tr>
+        </table>
+        <div class="export-row">
+          <button class="btn-xs" onclick="copyFoodPlan('${which}')">📋 Copy</button>
+          <button class="btn-xs" onclick="printFoodPlan('${which}')">🖨️ Print</button>
+        </div>
       </div>`;
     }
 
@@ -1360,7 +1511,10 @@ async function predict(which){
       </div>
       ${recHtml}${itemsHtml}${wasteItemsHtml}${costHtml}${whatifHtml}`;
     resultEl.classList.remove('hidden');
-  }catch(e){showToast(e.message||'Prediction failed');}
+  }catch(e){
+    $(`pred-result-${which}`).classList.add('hidden');
+    showToast(e.message||'Prediction failed');
+  }
   finally{
     const b=$(btnId);
     b.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2v6l2 2-2 2v6"/><path d="M18 2v6l-2 2 2 2v6"/><path d="M6 12h12"/></svg> Predict Waste';
@@ -1377,6 +1531,14 @@ function enableCompare(){
 // Load alerts on dashboard load
 loadAlerts();
 setInterval(loadAlerts,5*60*1000);
+// Init prediction history panel
+renderPredHistory();
+// Sync all prediction toggles to appState on load
+['weekend-a','exam-a','weekend-b','exam-b'].forEach(k=>{
+  const idMap={'weekend-a':'tog-pred-weekend-a','exam-a':'tog-pred-exam-a','weekend-b':'tog-pred-weekend-b','exam-b':'tog-pred-exam-b'};
+  const stateMap={'weekend-a':'togPredWeekendA','exam-a':'togPredExamA','weekend-b':'togPredWeekendB','exam-b':'togPredExamB'};
+  applyTog(idMap[k],appState[stateMap[k]]);
+});
 </script>
 </body>
 </html>
