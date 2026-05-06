@@ -176,20 +176,46 @@ MESS_TOPIC_KEYWORDS = {
     "hungry", "hunger", "satiate", "nutrition", "calorie", "healthy",
     "weekly", "daily", "monthly", "trend", "analysis", "report", "summary",
     "morning", "evening", "night", "slot", "time", "schedule",
+    # Hindi / Hinglish keywords
+    "kitna", "kitne", "kitni", "kitna", "banana", "banao", "banaye",
+    "liye", "ke", "ka", "ki", "se", "mein", "pe", "par",
+    "students", "vidyarthi", "bacche", "log",
+    "lunch", "dinner", "nashta", "chai", "khana", "bhojan",
+    "waste", "barbaad", "bachao", "kam", "zyada",
+    "weekend", "weekday", "exam", "pariksha",
+    "kharcha", "lagat", "cost", "price", "rupee", "paisa",
+    "trend", "history", "pichla", "aaj", "kal",
+    "hindi", "english", "language",
 }
+
+# Hindi patterns that indicate mess-related questions
+HINDI_MESS_PATTERNS = [
+    r"ke liye kitna", r"ka kharcha", r"kitna khana", r"kitna waste",
+    r"students ke", r"vidyarthi", r"khana banana", r"waste hoga",
+    r"kitni dal", r"kitna chawal", r"kitni roti", r"lunch ke",
+    r"dinner ke", r"nashte ke", r"chai ke", r"pichle hafte",
+    r"waste kam", r"khana kam", r"barbaad", r"bachao",
+    r"kitne rupee", r"kharcha kitna", r"budget kya",
+]
 
 def is_mess_related(message: str) -> bool:
     """Return True if the message is relevant to hostel mess management."""
     msg = message.strip().lower()
 
-    # Very short inputs (1-3 chars) — allow them, let fallback handle gracefully
+    # Very short inputs — allow, let fallback handle
     if len(msg) <= 3:
         return True
 
-    # If message contains a number — likely asking about students/kg
+    # If message contains a number — likely about students/kg
     if re.search(r"\d+", msg):
         return True
 
+    # Check Hindi mess patterns
+    for pattern in HINDI_MESS_PATTERNS:
+        if re.search(pattern, msg):
+            return True
+
+    # Check English keywords
     words = set(re.findall(r"[a-z]+", msg))
     return bool(words & MESS_TOPIC_KEYWORDS)
 
@@ -1009,57 +1035,113 @@ def chatbot_fallback_message(
     menu_data: dict | None = None,
     meal_slot: str = "Lunch",
 ) -> str:
-    greetings = {"hi", "hello", "hey", "hii", "yo", "namaste"}
-    if message.strip().lower() in greetings:
+    msg = message.strip().lower()
+
+    greetings = {"hi", "hello", "hey", "hii", "yo", "namaste", "hindi", "english"}
+    if msg in greetings:
         return (
             "Hello Admin! 👋\n\nAsk me things like:\n"
-            "• 'How much food for 120 students at lunch?'\n"
+            "• '120 students ke lunch ke liye kitna khana banana hai?'\n"
+            "• 'Food for 120 students at lunch?'\n"
             "• 'Waste estimate for 80 students on weekend?'\n"
-            "• 'How to reduce dinner waste?'"
+            "• 'Cost for 100 students at dinner?'"
         )
 
-    if len(message) < 4:
-        return "Please type a complete question, e.g. 'food for 120 students at lunch'."
+    if len(msg) < 4:
+        return "Please type a complete question, e.g. '120 students ke lunch ka khana?'"
 
     # Detect if message is off-topic
-    if not is_mess_related(message):
+    if not is_mess_related(msg):
         return (
+            "Main sirf hostel mess management ke baare mein jawab de sakta hoon — "
+            "khane ki matra, waste, cost, attendance, aur meal planning.\n\n"
             "I can only answer questions about hostel mess management — "
-            "food quantities, waste, attendance, menus, and meal planning. "
-            "Please ask something related to the mess!"
+            "food quantities, waste, cost, attendance, and meal planning."
         )
 
-    # Get current menu for the meal slot
+    # Get menu for meal slot
     menu_str = ""
     if menu_data and menu_data.get("menus"):
         menu_str = menu_data["menus"].get(meal_slot, "")
 
-    if "food" in message or "prepare" in message or "cook" in message or "quantity" in message:
+    context = f"{' (weekend)' if is_weekend else ''}{' (exam period)' if is_exam_period else ''}"
+
+    # ── Food quantity questions (English + Hindi) ────────────────────────
+    food_keywords = [
+        "food", "prepare", "cook", "quantity", "banana", "banao", "banaye",
+        "kitna khana", "khana kitna", "kitni dal", "kitna chawal", "kitni roti",
+        "kya banana", "kya banaye", "preparation", "suggest", "how much food",
+        "how much to", "prepare for", "cook for",
+    ]
+    is_food_q = any(kw in msg for kw in food_keywords)
+
+    # ── Waste questions (English + Hindi) ───────────────────────────────
+    waste_keywords = [
+        "waste", "leftover", "surplus", "barbaad", "bachega", "kitna waste",
+        "waste hoga", "waste kitna", "bache ga", "fek", "throw",
+    ]
+    is_waste_q = any(kw in msg for kw in waste_keywords)
+
+    # ── Cost questions ───────────────────────────────────────────────────
+    cost_keywords = [
+        "cost", "price", "kharcha", "rupee", "paisa", "kitne rupee",
+        "kharcha kitna", "budget", "lagat", "spend", "rs",
+    ]
+    is_cost_q = any(kw in msg for kw in cost_keywords)
+
+    # ── Build detailed response ──────────────────────────────────────────
+    if is_food_q or (not is_waste_q and not is_cost_q):
         if menu_str:
             items = breakdown_food_by_menu(menu_str, food_kg, students_present)
             if items:
-                return format_food_breakdown(items, meal_slot, students_present, is_weekend, is_exam_period)
-        context = f"{' (weekend)' if is_weekend else ''}{' (exam period)' if is_exam_period else ''}"
+                result = format_food_breakdown(items, meal_slot, students_present, is_weekend, is_exam_period)
+                # Add cost estimate at bottom
+                cost_data = estimate_cost(items)
+                per_student = round(cost_data["total"] / students_present, 2) if students_present else 0
+                result += f"\n\n💰 Estimated cost: ₹{cost_data['total']} (₹{per_student}/student)"
+                return result
+        # No menu — give general breakdown with tip
         return (
-            f"📋 For {students_present} students{context}, prepare approximately {food_kg} kg of food.\n"
-            f"(Add today's menu to get a per-item breakdown!)"
+            f"📋 {meal_slot} ke liye {students_present} students{context}:\n\n"
+            f"  • Total food needed: {food_kg} kg\n"
+            f"  • Expected waste: {predicted_waste} kg\n"
+            f"  • Waste %: {round(predicted_waste/food_kg*100,1) if food_kg else 0}%\n\n"
+            f"💡 Tip: Dashboard → Menu mein aaj ka menu set karo\n"
+            f"    (Dal, Chawal, Sabzi, Roti) — tab item-wise breakdown milega!"
         )
 
-    if "waste" in message or "leftover" in message or "surplus" in message:
+    if is_waste_q:
         if menu_str:
             items = breakdown_waste_by_menu(menu_str, predicted_waste)
             if items:
                 return format_waste_breakdown(items, meal_slot, students_present)
-        context = f"{' for weekend' if is_weekend else ''}{' in exam period' if is_exam_period else ''}"
         return (
-            f"🗑️ Estimated waste for {students_present} students{context}: {predicted_waste} kg\n"
-            f"(Add today's menu to get a per-item waste breakdown!)"
+            f"🗑️ {meal_slot} waste estimate for {students_present} students{context}:\n\n"
+            f"  • Total predicted waste: {predicted_waste} kg\n"
+            f"  • Waste per student: {round(predicted_waste/students_present,3) if students_present else 0} kg\n\n"
+            f"💡 Menu set karo — tab item-wise waste breakdown milega!"
+        )
+
+    if is_cost_q:
+        if menu_str:
+            food_items = breakdown_food_by_menu(menu_str, food_kg, students_present)
+            cost_data = estimate_cost(food_items)
+            return format_cost_breakdown(cost_data, meal_slot, students_present)
+        avg_cost = round(food_kg * 60, 2)
+        per_student = round(avg_cost / students_present, 2) if students_present else 0
+        return (
+            f"💰 {meal_slot} cost estimate for {students_present} students{context}:\n\n"
+            f"  • Total food: {food_kg} kg × avg ₹60/kg\n"
+            f"  • Estimated total: ₹{avg_cost}\n"
+            f"  • Per student: ₹{per_student}\n\n"
+            f"💡 Menu set karo — tab item-wise cost milega!"
         )
 
     return (
-        f"For {students_present} students: prepare ~{food_kg} kg, expected waste ~{predicted_waste} kg."
-        f"{' (weekend adjustment applied)' if is_weekend else ''}"
-        f"{' (exam period adjustment applied)' if is_exam_period else ''}"
+        f"📋 {meal_slot} — {students_present} students{context}:\n\n"
+        f"  • Food to prepare: {food_kg} kg\n"
+        f"  • Expected waste: {predicted_waste} kg\n"
+        f"  • Waste ratio: {round(predicted_waste/food_kg*100,1) if food_kg else 0}%"
     )
 
 
