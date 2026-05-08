@@ -52,6 +52,7 @@ DEFAULT_STUDENT_NAMES = [
     "Tanvi Joshi",
     "Arjun Roy",
     "Neha Kulkarni",
+    "Ayushi"
 ]
 
 DEFAULT_MENU = {
